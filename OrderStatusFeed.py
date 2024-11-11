@@ -2,7 +2,6 @@
 #Aliceblue
 #To be run after session generated
 
-
 import websocket
 import requests
 import json
@@ -11,10 +10,8 @@ import time
 import config
 from Gen_Functions import create_dir, file_exist, read_pkl, write_pkl
 from Logger_Module import my_logger, logging
-import logging 
 import datetime
-# import threading
-#import time
+from Order_Manager import check_order_status
 from queue import Queue
 
 # Queue to store notifications in order
@@ -44,11 +41,6 @@ worker_thread.daemon = True  # Ensures the worker thread exits when the main pro
 worker_thread.start()
 
 
-
-
-
-
-
 def generate_token():
     logging.info('generating order feed token') 
     alice = config.alice
@@ -59,9 +51,6 @@ def generate_token():
     token_url="ws/createWsToken"
     ws_url = "websocket" 
     Url = base_url + token_url
-    
-    #print(Url) 
-    #sleep(10)
     res = alice._request(Url, "GET" )
     logging.info(f'generate token response: {res} ') 
     if res['status'] == 'Ok' :
@@ -77,14 +66,14 @@ def generate_token():
     else:
         logging.error(f"Error in token generation: {res.json()}")
         return None
-   
-    
+
 
 def on_message(ws1, message):
     """Handles incoming WebSocket messages."""
     data = json.loads(message)
     new_msg = json.dumps(data, indent=4)
-    print(new_msg) 
+    print('new message recd(order status feed):')
+    print(new_msg)
     log(new_msg) 
     logging.info(new_msg) 
     if 't' in data:
@@ -98,11 +87,15 @@ def on_close(ws1, close_status_code, close_msg):
     """Handles WebSocket closing."""
     logging.info("Order WebSocket closed")
     log("order feed closed") 
-    start_orderfeed_websocket()
+    start_order_feed_websocket()
 
 def on_open(ws1):
     """Handles WebSocket connection opening."""
     logging.info("WebSocket connection established")
+
+    # update config.order_status_dict by using check_order_status in case orders are already sent
+    check_order_status()
+
     ws1.send(generate_token() )
     
     # Send heartbeat every minute to keep connection alive
@@ -114,12 +107,12 @@ def on_open(ws1):
             }
             res = ws1.send(json.dumps(h))
             logging.debug(f"Heartbeat sent. Res: {res}")
-            
+            print(f"Heartbeat sent. Res: {res}")
             time.sleep(50)
     #starting heartbeat thread
     threading.Thread(target=send_heartbeat, daemon=True).start()
 
-def start_orderfeed_websocket():
+def start_order_feed_websocket():
     """Establishes WebSocket connection."""
     
     logging.info("Establishes WebSocket connection.... ")
@@ -142,47 +135,32 @@ def start_orderfeed_websocket():
     
 def manage_order_status(order_msg):
     """func to maintain order status with order id""" 
-    
+    from config import order_status_dict
+
+    check_order_status() # func from Order_Manager.py to update order status variables
+    order_id = order_msg['norenordno']
     file_path = 'pkl_obj/orderstatusfeed.pkl'
     today_date = datetime.date.today()
-    o_status = {} 
-    msg = {} 
-    order_id = order_msg['norenordno'] 
-    msg[order_msg['norenordno']] = {
-            'record_date' : today_date, 
-            'status' : order_msg['status'], 
-            'price' : order_msg['prc'], 
-            'rejreason' : '' 
-         }
-    
+    # update order status in config.order_status_dict
+    order_status_dict[order_msg['norenordno']] = {
+        'record_date': today_date,
+        'status': order_msg['status'],
+        'tsym': order_msg['tsym'],
+        'price': order_msg['prc'],
+        'rejreason': ''
+    }
+    logging.info(f'order_status_dict updated for order id : {order_id}')
+    # if order is rejected, update rejection reason
+    if order_status_dict[order_id] ['status']=='REJECTED' :
+        order_status_dict[order_id] ['rejreason']=order_msg['rejreason']
+        logging.info(f'rejection reason updated for order id: {order_id}')
+    # for logging
+    msg = dict(order_id = order_status_dict[order_msg['norenordno']])
     logging.info(msg)
-    if file_exist(file_path):
-         o_status = read_pkl(file_path)
-         #if order_id in o_status:
-         o_status[order_msg['norenordno']] = {
-                'record_date' : today_date, 
-                'status' : order_msg['status'], 
-                'price' : order_msg['prc'], 
-                'rejreason' : '' 
-             }
-         
-         
-    else:
-         o_status[order_msg['norenordno']] = {
-                'record_date' : today_date, 
-                'status' : order_msg['status'], 
-                'price' : order_msg['prc'], 
-                'rejreason' : '' 
-             }
-    
-    if o_status[order_id] ['status']=='REJECTED' :
-        o_status[order_id] ['rejreason']=order_msg['rejreason'] 
-        
-    write_pkl(obj=o_status, file_path=file_path) 
-    print(o_status) 
-    
-    
-    
+
+    print(f"order_status_dict: {order_status_dict}")
+
+
 def del_old_records() :
     file_path = 'pkl_obj/orderstatusfeed.pkl'   
     today_date = datetime.date.today()
@@ -203,13 +181,13 @@ def del_old_records() :
     write_pkl(file_path=file_path, obj=records) 
     
 
-file_path = 'pkl_obj/orderstatusfeed.pkl'   
-msg = read_pkl(file_path)
-for id in msg:
-    msg[id]['record_date'] = msg[id]['record_date'].isoformat()
-    print(msg[id]['record_date']) 
-
-print(json.dumps(msg, indent=4)) 
+# file_path = 'pkl_obj/orderstatusfeed.pkl'
+# msg = read_pkl(file_path)
+# for id in msg:
+#     msg[id]['record_date'] = msg[id]['record_date'].isoformat()
+#     print(msg[id]['record_date'])
+#
+# print(json.dumps(msg, indent=4))
 #id ='24102300269409' 
 #print(msg[id]['status']) 
 #if id in msg:

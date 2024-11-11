@@ -15,10 +15,11 @@ from pya3 import *
 from Gen_Functions import *
 from Alice_Module import *
 import pickle
-import OrderStatusFeed as o 
+
 
 from enum import Enum
 import config
+import OrderStatusFeed as o
 from Order_Manager import *
 
 
@@ -82,7 +83,7 @@ if config.alice is None:
 alice = config.alice
 
 try:
-    o.start_orderfeed_websocket() 
+    o.start_order_feed_websocket()
     while True:
         # On Session Over @1530hrs break while loop
         if get_time() >= SESSION_END_TIME:

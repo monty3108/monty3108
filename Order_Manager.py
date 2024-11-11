@@ -1,26 +1,11 @@
 from enum import Enum
 
 from pya3.alicebluepy import *
-
 import config
 from Gen_Functions import read_pkl, round_nearest, write_pkl
 from Logger_Module import *
 
-
-#class Order(Enum):
-#    buy = TransactionType.Buy
-#    sell = TransactionType.Sell
-#    mkt = OrderType.Market
-#    limit = OrderType.Limit
-#    slm = OrderType.StopLossMarket
-#    sll = OrderType.StopLossLimit
-#    nrml = ProductType.Normal
-#    mis = ProductType.Intraday
-#    cnc = ProductType.Delivery
-
-
 alice = None
-#********************
 
 
 def send_order(transaction_type,
@@ -67,11 +52,13 @@ def send_order(transaction_type,
 
 def check_order_status():
     fn = "check_order_status"
+    from config import order_status_dict
+    print(f'order_status_dict: {order_status_dict}')
     try:
         global alice
-        alice= config.alice
+        alice = config.alice
         response = alice.get_order_history('')
-    
+
         if type(response) is list:
             pending_order_id = []
             complete_order_id = []
@@ -107,42 +94,55 @@ def check_order_status():
                     "average_price": float(response[i]['Avgprc'])
                 }
                 order_id_response[response[i]['Nstordno']] = {"stat": response[i]['stat'],
-                                                      "order_status": response[i]['Status'],
-                                                      "rejection_reason": response[i]['RejReason'],
-                                                      "trading_symbol": response[i]['Trsym'],
-                                                      "quantity": response[i]['Qty'],
-                                                      "average_price": float(response[i]['Avgprc']),
-                                                      "trigger_price": response[i]['Trgprc'],
-                                                      "product": response[i]['Pcode'],
-                                                      "price": response[i]['Prc'],
-                                                      "transaction_type": response[i]['Trantype']
-                                                      }
-                if response[i]['Status'] == 'open' or response[i]['Status'] == 'trigger pending':
-                    pending_order_id.append(data["oms_order_id"])
-                elif response[i]['Status'] == 'complete':
-                    complete_order_id.append(data["oms_order_id"])
-                elif response[i]['Status'] == 'rejected':
-                    rej_order_id = data["oms_order_id"] 
-                    print(rej_order_id)
-                    rejected_order_ids = read_pkl(file_path='pkl_obj/rejected_order_id.pkl') 
-                    print(rejected_order_ids) 
-                    if not rej_order_id in rejected_order_ids:
-                        text=f"{response[i]['Nstordno']} rejected: {response[i]['RejReason']}"
-                        my_logger(data_to_log=text, fn=fn, bot=True)
-                        logging.warning(text)
+                                                              "order_status": response[i]['Status'],
+                                                              "rejection_reason": response[i]['RejReason'],
+                                                              "trading_symbol": response[i]['Trsym'],
+                                                              "quantity": response[i]['Qty'],
+                                                              "average_price": float(response[i]['Avgprc']),
+                                                              "trigger_price": response[i]['Trgprc'],
+                                                              "product": response[i]['Pcode'],
+                                                              "price": response[i]['Prc'],
+                                                              "transaction_type": response[i]['Trantype']
+                                                              }
+
+                # updating global variable order_status_dict with latest status
+                order_status_dict[response[i]['Nstordno']] = {
+                    'record_date': datetime.date.today(),
+                    'status': response[i]['Status'],
+                    'tsym': response[i]['Trsym'],
+                    'price': response[i]['Prc'],
+                    'rejreason': response[i]['RejReason']
+                }
+
+                if response[i]['Status'] == 'rejected':
+                    rej_order_id = response[i]['Nstordno']
+                    print(f'Rejected order id: {rej_order_id}')
+                    rejected_order_id.append(rej_order_id)
+                    rej_order_ids = read_pkl(file_path='pkl_obj/rejected_order_id.pkl')
+
+                    if rej_order_ids is None:  # execute if None
+                        logging.info("no order id or file found")
                     else:
-                        print(f'msg already sent for {rej_order_id} ') 
-                    rejected_order_id.append(data["oms_order_id"])
+                        print(f'Rejected order ids: {rej_order_ids}')
+                        # restricting recurring rejection notifications
+                        if rej_order_id in rej_order_ids:
+                            print(f'msg already sent for {rej_order_id}')
+                        else:
+                            text = f"{rej_order_id} rejected: {response[i]['RejReason']}"
+                            print(text)
+                            my_logger(data_to_log=text, fn=fn, bot=True)
+                            logging.warning(text)
+                            print(f"rejected_order_id: {rejected_order_id}")
+
             # writing variables to file
-            files = [pending_order_id, complete_order_id, rejected_order_id, order_id_response]
-            file_path = ['pkl_obj/pending_order_id.pkl', 'pkl_obj/complete_order_id.pkl', 
-                         'pkl_obj/rejected_order_id.pkl', 'pkl_obj/order_id_response.pkl']
+            files = [rejected_order_id, order_id_response]
+            file_path = ['pkl_obj/rejected_order_id.pkl', 'pkl_obj/order_id_response.pkl']
             for i in range(len(files)):
                 write_pkl(obj=files[i], file_path=file_path[i])
         else:
             text = f'get order history response: {response}'
             my_logger(data_to_log=text, fn=fn, bot=True)
-            logging.info(text)   
+            logging.info(text)
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
@@ -151,10 +151,14 @@ def check_order_status():
 
 def is_pending(order_id):
     fn = 'is_pending'
+
     try:
-        check_order_status()
-        pending_order_id = read_pkl(file_path='pkl_obj/pending_order_id.pkl')
-        return order_id in pending_order_id
+        from config import order_status_dict
+        status = order_status_dict[order_id]['status'].lower()
+        return status == 'open'
+        # check_order_status()
+        # pending_order_id = read_pkl(file_path='pkl_obj/pending_order_id.pkl')
+        # return order_id in pending_order_id
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
@@ -164,9 +168,9 @@ def is_pending(order_id):
 def is_complete(order_id):
     fn = 'is_complete'
     try:
-        check_order_status()
-        complete_order_id = read_pkl(file_path='pkl_obj/complete_order_id.pkl')
-        return order_id in complete_order_id
+        from config import order_status_dict
+        status = order_status_dict[order_id]['status'].lower()
+        return status == 'complete'
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
@@ -178,7 +182,23 @@ def get_price(order_id):
     try:
         if is_complete(order_id):
             order_id_response = read_pkl(file_path='pkl_obj/order_id_response.pkl')
-        return order_id_response[order_id]['average_price']
+            return order_id_response[order_id]['average_price']
+    except Exception as e:
+        text = f"Error: {e}"
+        my_logger(data_to_log=text, fn=fn, bot=True)
+        logging.exception(text)
+
+
+def reset_order_files():
+    """func to clear files: order_id_response.pkl and rejected_order_id.pkl"""
+    fn = 'reset_order_files'
+    try:
+        file_path = ['pkl_obj/rejected_order_id.pkl', 'pkl_obj/order_id_response.pkl']
+        for i in range(len(file_path)):
+            x = read_pkl(file_path=file_path[i])
+            x.clear()
+            write_pkl(obj=x, file_path=file_path[i])
+        logging.info(f"cleared order files: {file_path}")
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)

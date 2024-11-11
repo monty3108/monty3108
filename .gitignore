@@ -1,5 +1,13 @@
 # personal files
 credentials.txt
+/logs
+/pkl_obj
+NFO.csv
+*.ipynb
+app_logs.txt
+data.txt
+INDICES.csv
+NSE.csv
 
 
 # Byte-compiled / optimized / DLL files
