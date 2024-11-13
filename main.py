@@ -1,6 +1,6 @@
 # Buy Nifty Strategy
 # Strategy for live market 
-# Buy 1 lot on movt more than 150 : L1
+# Buy 1 lot on movement more than 150 : L1
 # then on double of buy price(b) activate SL mechanism 
 # b < 20
 # when ltp = 2b, Put SL at b+2, securing principal: L2
@@ -22,13 +22,22 @@ from Alice_Module import *
 import pickle
 
 from enum import Enum
-import config
+
 from Order_Manager import *
 
 
 import threading
 #import time
 from queue import Queue
+# constants from config files
+from config import (
+    alice as config_alice,
+    dir_name,
+    INDEX_NIFTY_SYMBOL,
+    FNO_NIFTY_SYMBOL
+)
+
+
 
 # Queue to store notifications in order
 notification_queue = Queue()
@@ -39,11 +48,8 @@ def notification_worker():
         notification = notification_queue.get()  # Get the next notification from the queue
         if notification is None:  # If None is received, stop the worker
             break
-        
         # Sending the notification
-        #my_logger(data_to_log=notification, bot=True) 
-        my_logger(notification) 
-          
+        my_logger(notification)
         notification_queue.task_done()
 
 # Function to generate and send notifications
@@ -77,14 +83,16 @@ class Variables :
         self.qty = 0
         self.buy_hedge = False
         self.prices = {}
+        self.last_sl_date= None
         self.order_ids = {
-            'order1' : None, 
-            'order2' : None, 
-            'order3' : None, 
-            'order_sl' : None, 
-            'order_tgt' : None, 
+            'order1' : None,
+            'order2' : None,
+            'order3' : None,
+            'order_sl' : None,
+            'order_tgt' : None,
             'order_sqoff' : None,
             'order_hedge': None
+
         }
 
 
@@ -92,7 +100,7 @@ def get_var_name(var):
     try:
         for name, value in globals().items():
             if value is var:
-                logging.debug(f'Var name: {name}') 
+                logging.debug(f'Var name: {name}')
                 return name
     except Exception as e:
         text = f"Error: {e}"
@@ -114,19 +122,19 @@ def reset_var(var) :
         var.buy_hedge = False
         var.prices = {}
         var.order_ids = {
-            'order1' : None, 
-            'order2' : None, 
-            'order3' : None, 
-            'order_sl' : None, 
-            'order_tgt' : None, 
-            'order_sqoff' : None 
+            'order1' : None,
+            'order2' : None,
+            'order3' : None,
+            'order_sl' : None,
+            'order_tgt' : None,
+            'order_sqoff' : None
         }
         if ce_var.inst is None:
             ce.instrument = None
-            logging.info('ce inst set to None') 
+            logging.info('ce inst set to None')
         if pe_var.inst is None:
             pe.instrument = None
-            logging.info('pe inst set to None') 
+            logging.info('pe inst set to None')
         txt = f'{get_var_name(var)} is reset.'
         write_obj()
         log(txt)
@@ -151,8 +159,8 @@ def check_expiry():
                     text = f'{i.inst} is expired. Resetting {get_var_name(i)}.'
                     log(text)
                     logging.info(text)
-                    reset_var(i)   
-                    write_obj() 
+                    reset_var(i)
+                    write_obj()
                 else:
                     text = f'{i.inst} is not expired.'
                     logging.info(text)
@@ -169,7 +177,7 @@ def obj_report():
         obj_list= [ce_var, pe_var]
         report = []
         for obj in obj_list:
-            n = get_var_name(obj) 
+            n = get_var_name(obj)
             a = obj.change
             b = obj.first_order_sent
             c = obj.level.value
@@ -180,7 +188,7 @@ def obj_report():
             h = obj.order_ids
             txt = f'{n}: Change: {a} First_order: { b} Level: {c} Inst: {d} Qty: {eo} Buy_hedge: {f} Prices: {g} Ids: {h} .'
             if d is None:
-                report.append(f'{n}: None') 
+                report.append(f'{n}: None')
             else:
                 report.append(txt)
         # dict_report= {'ce': report[0], 'pe' : report[1]}
@@ -195,46 +203,46 @@ def obj_report():
 
 def check_hedge() :
     """Func to check buy posn & set buy_hedge to True"""
-    try: 
+    try:
         global alice
         positions = alice.get_netwise_positions()
-        # print(json.dumps(positions, indent=4)) 
+        # print(json.dumps(positions, indent=4))
         log_is_list = False
         if isinstance(positions, list):
             logging.info(f'positions log is a list. Continue process.')
             log_is_list = True
         else:
             logging.warning(f"Positions log is not a list, response: {positions}" )
-        
+
         if log_is_list:
             position_log_list = []
-            
+
             for log in positions:
-                qty = int(log['Netqty']) 
+                qty = int(log['Netqty'])
                 # print(qty)
                 buy_avg_price = float(log['Buyavgprc' ])
                 option_type =  log['Opttype']
-                 
+
                 position_log = {
-                "Option_type": option_type, 
-                "AvgPrice": buy_avg_price, 
-                "Qty": qty 
+                "Option_type": option_type,
+                "AvgPrice": buy_avg_price,
+                "Qty": qty
                 }
                 position_log_list.append(position_log)
-            logging.info(f'all position: {position_log_list}') 
+            logging.info(f'all position: {position_log_list}')
             #print(json.dumps(trade_log_list, indent=4))
             for posn in position_log_list:
                 if posn['Qty'] > 0:
                     if posn['AvgPrice'] > 0 and posn['AvgPrice']<5:
                         if posn['Option_type'] == 'CE':
-                            logging.info('CE buy hedge is True') 
+                            logging.info('CE buy hedge is True')
                             ce_var.buy_hedge = True
-                            write_obj() 
+                            write_obj()
                         else:
-                            logging.info('PE buy hedge is True') 
+                            logging.info('PE buy hedge is True')
                             pe_var.buy_hedge = True
-                            write_obj() 
-            
+                            write_obj()
+
     except Exception as e:
         text = f"Error: {e}"
         logging.exception(text)
@@ -245,7 +253,7 @@ def calc_strike(ltp, premium=20, is_ce=True):
     fn = 'calc_strike'
     #rg #range
     try:
-        global SYMBOL
+        global FNO_NIFTY_SYMBOL
         inst_dict={}
         we = str(weekly_expiry_calculator())
         if is_ce is True:
@@ -255,10 +263,10 @@ def calc_strike(ltp, premium=20, is_ce=True):
         for i in rg:
             strike=strike_calc(ltp=ltp , base=50, strike_difference=i)
             # print(f'strike: {strike, fn} ')
-            inst = nf.get_instrument_for_fno(symbol=SYMBOL, expiry_date=we,is_fut=False, strike=strike, is_ce=is_ce)
+            inst = nf.get_instrument_for_fno(symbol=FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike, is_ce=is_ce)
             # print(f' inst: {inst, fn} ')
             info = alice.get_scrip_info(inst)
-            # print(f' info: {info, fn} ') 
+            # print(f' info: {info, fn} ')
             c_ltp= float(info['LTP'])
             if c_ltp<premium:
                 # print(f'{inst} :{c_ltp, fn} ')
@@ -310,7 +318,7 @@ def calc_levels_price(first_entry, per=1.6, max_loss = 4000.0):
         log(text)
         logging.exception(text)
         return {}
-    
+
 
 # Check condition for change
 def change_in_ltp(current_ltp):
@@ -343,7 +351,7 @@ def first_level():
                 ce.instrument = inst_dict['inst']
                 premium = inst_dict['ltp']
                 ce_var.inst = inst_dict['inst']
-                ce.assigned(QTY)
+                ce.assigned(LOTS)
                 #sbin = alice.get_instrument_by_symbol(exchange='NSE', symbol='SBIN' )
                 ce_var.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy ,
                                                        inst=ce_var.inst,
@@ -355,21 +363,21 @@ def first_level():
                 # ce.place_order(type_of_order=Order.sell, price=premium)
                 subscribe()
                 ltp_update()
-                write_obj() 
+                write_obj()
             elif ce_var.first_order_sent is True:
                 order_id = ce_var.order_ids['order1']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     price = get_price(order_id)
                     ce_var.prices = calc_levels_price(price)
                     ce_var.level = Level.second
                     ce_var.qty = 25
                     write_obj()
-                    txt= f'CE order1 completed at price: {price}' 
+                    txt= f'CE order1 completed at price: {price}'
                     logging.info(txt)
-                    log(txt) 
+                    log(txt)
 
         if pe_var.level is Level.first:
             # For PE position
@@ -382,7 +390,7 @@ def first_level():
                     pe.instrument = inst_dict['inst']
                     premium = inst_dict['ltp']
                     pe_var.inst = inst_dict['inst']
-                    pe.assigned(QTY)
+                    pe.assigned(LOTS)
                     pe_var.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
                                                            inst=pe_var.inst,
                                                            qty=25,
@@ -393,21 +401,21 @@ def first_level():
                     # ce.place_order(type_of_order=Order.sell, price=premium)
                     subscribe()
                     ltp_update()
-                    write_obj() 
+                    write_obj()
                 elif pe_var.first_order_sent is True:
                     order_id = pe_var.order_ids['order1']
                     if is_pending(order_id):
                         return
-                        
+
                     if is_complete(order_id):
                         price = get_price(order_id)
                         pe_var.prices = calc_levels_price(price)
                         pe_var.level = Level.second
                         pe_var.qty = 25
                         write_obj()
-                        txt= f'PE order1 completed at price: {price}.' 
+                        txt= f'PE order1 completed at price: {price}.'
                         logging.info(txt)
-                        log(txt) 
+                        log(txt)
     except Exception as e:
         text = f"Error: {e}"
         log(text)
@@ -435,13 +443,13 @@ def second_level() :
                 order_id = ce_var.order_ids['order2']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     ce_var.level = Level.third
                     ce_var.qty += 25
                     write_obj()
                     txt = f"CE order2 completed. "
-                    log(txt) 
+                    log(txt)
                     logging.info(txt)
 
 
@@ -464,20 +472,20 @@ def second_level() :
                 order_id = pe_var.order_ids['order2']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     pe_var.level = Level.third
                     pe_var.qty += 25
                     write_obj()
-                    txt = 'PE order2 completed' 
+                    txt = 'PE order2 completed'
                     logging.info(txt)
-                    log(txt) 
+                    log(txt)
     except Exception as e:
         text = f"Error: {e}"
         log(text)
         logging.exception(text)
 
-        
+
 def third_level():
     try:
         # For CE posns
@@ -498,12 +506,12 @@ def third_level():
                 order_id = ce_var.order_ids['order3']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     ce_var.level = Level.fourth
                     ce_var.qty += 25
                     write_obj()
-                    text = "CE order3 completed" 
+                    text = "CE order3 completed"
                     logging.info(text)
                     log(text)
         # For PE posns
@@ -524,12 +532,12 @@ def third_level():
                 order_id = pe_var.order_ids['order3']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     pe_var.level = Level.fourth
                     pe_var.qty += 25
                     write_obj()
-                    text = "PE order3 completed" 
+                    text = "PE order3 completed"
                     logging.info(text)
                     log(text)
     except Exception as e:
@@ -549,7 +557,7 @@ def fourth_level():
                            inst=ce.instrument,
                            qty=ce_var.qty,
                            order_type=OrderType.Market,
-                           product_type=ProductType.Normal, 
+                           product_type=ProductType.Normal,
                            price=0.0
                            )
                     logging.info("Tgt Triggered and order sent.")
@@ -557,14 +565,14 @@ def fourth_level():
                 order_id = ce_var.order_ids['order_sl']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     reset_var(ce_var)
                     check_hedge()
                     write_obj()
                     text = "CE positions Squared Off. "
                     logging.info(text)
-                    log(text) 
+                    log(text)
 
         #For PE posns
         if pe_var.level is Level.fourth:
@@ -574,7 +582,7 @@ def fourth_level():
                            inst=pe.instrument,
                            qty=pe_var.qty,
                            order_type=OrderType.Market,
-                           product_type=ProductType.Normal, 
+                           product_type=ProductType.Normal,
                            price=0.0
                            )
                     logging.info("Tgt Triggered and order sent.")
@@ -582,7 +590,7 @@ def fourth_level():
                 order_id = pe_var.order_ids['order_sl']
                 if is_pending(order_id):
                     return
-                    
+
                 if is_complete(order_id):
                     reset_var(pe_var)
                     check_hedge()
@@ -590,7 +598,7 @@ def fourth_level():
                     text = "PE positions Squared Off."
                     logging.info(text)
                     log(text)
-            
+
     except Exception as e:
         text = f"Error: {e}"
         log(text)
@@ -610,12 +618,12 @@ def exit_at_low_level():
                            inst=ce.instrument,
                            qty=ce_var.qty,
                            order_type=OrderType.Market,
-                           product_type=ProductType.Normal, 
+                           product_type=ProductType.Normal,
                            price=0.0
                            )
                 reset_var(ce_var)
                 check_hedge()
-                write_obj() 
+                write_obj()
                 log('CE exit_at_low_level')
                 logging.info('CE exit_at_low_level')
 
@@ -628,12 +636,12 @@ def exit_at_low_level():
                            inst=pe.instrument,
                            qty=pe_var.qty,
                            order_type=OrderType.Market,
-                           product_type=ProductType.Normal, 
+                           product_type=ProductType.Normal,
                            price=0.0
                            )
                 reset_var(pe_var)
                 check_hedge()
-                write_obj() 
+                write_obj()
                 log('PE exit_at_low_level')
                 logging.info('PE exit_at_low_level')
     except Exception as e:
@@ -698,16 +706,16 @@ def buy_pe_hedge():
 
 def read_obj() :
     fn = 'read_obj'
-    global ce_var, pe_var, QTY
+    global ce_var, pe_var, LOTS
     try:
         with open('obj.pkl', 'rb') as file:
             ce_var, pe_var = pickle.load(file)
         if ce_var.inst is not None:
             ce.instrument = ce_var.inst
-            ce.assigned(QTY)
+            ce.assigned(LOTS)
         if pe_var.inst is not None:
             pe.instrument = pe_var.inst
-            pe.assigned(QTY)
+            pe.assigned(LOTS)
         txt = 'Read all Objs'
         logging.info(txt)
         obj_report()
@@ -733,8 +741,8 @@ def write_obj() :
 
 
 def today_expiry_day():
-    '''func to return True if today is Thu Expiry Day''' 
-    fn = "today_expiry_day" 
+    '''func to return True if today is Thu Expiry Day'''
+    fn = "today_expiry_day"
     try:
         we = weekly_expiry_calculator()
         today_date = datetime.date.today()
@@ -753,24 +761,26 @@ logger.info("All Modules imported successfully.")
 
 try:
     # Exit if today is holiday
-    is_holiday_today() 
-    # making required directories
-    dir_name = ['logs', 'pkl_obj']
+    is_holiday_today()
+
+    # create required directories
     create_dir(dir_name)
+
 except Exception as e:
     logging.exception(e)
 
 
 # Constants
-CHANGE = 250
+CHANGE = 150
 PREMIUM = 20
-MAX_LOSS = 4000.0
+# MAX_LOSS = 4000.0
 POSITIVE_CHANGE = 0
 NEGATIVE_CHANGE = 0
+# to check if today is Expiry day. True if today is Expiry
 EXPIRY_DAY = today_expiry_day()
 EXIT_LEVEL = 5.5
-QTY=25 # Mention lot size
-txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Max_loss: {MAX_LOSS} (d) Exit_Level: {EXIT_LEVEL} (e) Expiry: {EXPIRY_DAY}'
+LOTS=1 # Mention lots. Lots qty will be extracted from instrument.
+txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
 log(txt)
 logging.info(txt)
 
@@ -794,18 +804,16 @@ if config.alice is None:
     logging.debug(f'alice obj after calling:{config.alice} ')   
 
 # Setting alice value from config file alice obj
-alice = config.alice
+alice = config_alice
 
-# logging balance on csv
-log_balance() 
+# logging balance on csv. Try to maintain only one file
+# log_balance() # will be maintained in TradeNifty
 
 
-# Define Trade class for Nifty 50 as nf
-INDEX_SYMBOL = 'NIFTY 50' #for index
-SYMBOL = 'NIFTY' #for fno
+
 # Nifty Index Instrument
 try:
-    NIFTY_INST = alice.get_instrument_by_symbol(exchange='INDICES', symbol=INDEX_SYMBOL)
+    NIFTY_INST = alice.get_instrument_by_symbol(exchange='INDICES', symbol=INDEX_NIFTY_SYMBOL)
     logging.info(f'Nifty_Inst retrieved: {NIFTY_INST}')
     
     # nf for Nifty Index declared for Trade Class
@@ -826,7 +834,7 @@ try:
     to_date = datetime.datetime.now().replace(hour=15, minute=30, second=0) - datetime.timedelta(days=1)
     logging.debug(f'to date: {to_date}')
 
-    df = pd.DataFrame()
+    # df = pd.DataFrame()
     df=nf.historical_data(no_of_days=None, interval="D", indices=True, from_datetime = from_date,to_datetime=to_date)
     # interval : ["1", "D"] // indices: True or False
     logging.debug(f'historical data: {df}')
@@ -880,7 +888,7 @@ try:
     # Dummy Instrument retrieval checking
     strike=strike_calc(ltp=nf.ltp , base=50, strike_difference=0)
     we = str(weekly_expiry_calculator())
-    inst = nf.get_instrument_for_fno(symbol=SYMBOL, expiry_date=we,is_fut=False, strike=strike, is_ce=True)
+    inst = nf.get_instrument_for_fno(symbol=FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike, is_ce=True)
     change_in_ltp(nf.ltp)
     dummy_inst = f'Dummy Inst at ATM: {inst}, Ltp: {nf.ltp}, close: {p_close}, Change: {POSITIVE_CHANGE}'
     logging.info(dummy_inst)
