@@ -176,7 +176,6 @@ def write_pkl(obj, file_path):
         logging.info(f'{file_path} written successfully.')
     except Exception as e:
         text = f"Error: {e}"
-        log(text=text, fn=fn, bot=True)
         logging.exception(text)
 
 

@@ -123,13 +123,12 @@ class Trade:
     def initialise_alice_variables(self):
         Alice_Module.trade_class_list.append(self)
 
-    def assigned(self, qty=0):
+    def assigned(self, lots=1, qty_on_error=25):
         fn = 'assigned'
         try:
             self.exchange = self.instrument[0]
             self.token = self.instrument[1]
             self.symbol = self.instrument[3]
-            self.qty = qty
             if len(self.symbol) == 0:
                 self.symbol = self.instrument[2]
             # t = datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S")
@@ -141,11 +140,16 @@ class Trade:
                 if result_file_exist:
                     self.csv_file_existed = True
                     my_logger(data_to_log="csv existed", sym=self.symbol, fn=fn, bot=False)
+            if self.instrument[5] == '':
+                self.qty = qty_on_error
+            else:
+                self.qty = int(self.instrument[5] * lots)
         except Exception as e:
             t = datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S")
             text = f"{t}:Error: {e}"
             my_logger(data_to_log=text, fn=fn, bot=True)
             logger.exception(text)
+
 
     def order_place(self, transaction_type, order_type, product_type, price=0.0,
                     trigger_price=None, order_tag='order1', update_order_id_to=None):

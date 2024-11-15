@@ -20,6 +20,7 @@ from pya3 import *
 from Gen_Functions import *
 from Alice_Module import *
 import pickle
+from OrderStatusFeed import start_order_feed_websocket
 
 from enum import Enum
 
@@ -30,12 +31,7 @@ import threading
 #import time
 from queue import Queue
 # constants from config files
-from config import (
-    alice as config_alice,
-    dir_name,
-    INDEX_NIFTY_SYMBOL,
-    FNO_NIFTY_SYMBOL
-)
+import config
 
 
 
@@ -55,7 +51,10 @@ def notification_worker():
 # Function to generate and send notifications
 def log(message):
     # Put the notification into the queue for the worker to process
-    notification_queue.put(message)
+    if config.notification:
+        notification_queue.put(message)
+    if config.print_notification:
+        print(message)
 
 # Start a background thread that continuously processes notifications
 worker_thread = threading.Thread(target=notification_worker)
@@ -84,6 +83,7 @@ class Variables :
         self.buy_hedge = False
         self.prices = {}
         self.last_sl_date= None
+        self.tgt_date = None
         self.order_ids = {
             'order1' : None,
             'order2' : None,
@@ -117,7 +117,7 @@ def reset_var(var) :
         var.position = False
         var.first_order_sent = False
         var.level = Level.first
-        var.inst = None
+        var.dummy_inst = None
         var.qty = 0
         var.buy_hedge = False
         var.prices = {}
@@ -253,7 +253,6 @@ def calc_strike(ltp, premium=20, is_ce=True):
     fn = 'calc_strike'
     #rg #range
     try:
-        global FNO_NIFTY_SYMBOL
         inst_dict={}
         we = str(weekly_expiry_calculator())
         if is_ce is True:
@@ -262,8 +261,8 @@ def calc_strike(ltp, premium=20, is_ce=True):
             rg = range(0,-25,-1)
         for i in rg:
             strike=strike_calc(ltp=ltp , base=50, strike_difference=i)
-            # print(f'strike: {strike, fn} ')
-            inst = nf.get_instrument_for_fno(symbol=FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike, is_ce=is_ce)
+            inst = nf.get_instrument_for_fno(symbol=config.FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False,
+                                             strike=strike, is_ce=is_ce)
             # print(f' inst: {inst, fn} ')
             info = alice.get_scrip_info(inst)
             # print(f' info: {info, fn} ')
@@ -284,32 +283,19 @@ def calc_strike(ltp, premium=20, is_ce=True):
         logging.exception(text)
 
 
-def calc_levels_price(first_entry, per=1.6, max_loss = 4000.0):
+def calc_levels_price(first_entry, trade_var: Trade):
     """Func to calculate 2nd, 3rd entry and
     SL based on percent & max loss"""
     fn = 'calc_levels_price'
     try:
         x= first_entry
-        #q = 1.8
-        p = per #percent
-        # second entry
-        y = round_nearest(x * p)
-        # third entry
-        z = round_nearest(y * p)
-        # print(x, y, z)
-        avg = round_nearest((x+y+z) /3)
-        # print(f'avg: {avg} ')
-        current_loss = 75 * (z-avg)
-        ltp_to_max_loss = (max_loss - current_loss)/75
-        sl = round_nearest(z + ltp_to_max_loss)
-        # print(f'Points after 3rd level: {round(ltp_to_max_loss, 2)} ')
-        # print(f'SL: {sl} ')
+        y = (first_entry *2) + 2 # tgt
+        z = first_entry * trade_var.qty # max buy amount
+
         dict = {
-        'first_entry' : x,
-        'second_entry' : y,
-        'third_entry' : z,
-        'avg' : avg,
-        'sl' : sl
+        'entry_price' : x,
+        'tgt_price' : y,
+        'max_loss' : z
         }
         logging.info(f'Calculated level prices: {dict}')
         return dict
@@ -335,409 +321,90 @@ def change_in_ltp(current_ltp):
         logging.info(text)
 
 
-def first_level():
+def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
     fn='first_level'
-    global POSITIVE_CHANGE, NEGATIVE_CHANGE, PREMIUM, alice
+
     change_in_ltp(nf.ltp)
     try:
-        if ce_var.level is Level.first:
-        # For CE position
-            if POSITIVE_CHANGE > CHANGE and ce_var.first_order_sent is False:
-                ce_var.first_order_sent = True
-                txt=f'Positive Change: {POSITIVE_CHANGE} taking Buy posn. '
-                log(txt)
-                logging.info(txt)
-                inst_dict = calc_strike(ltp=nf.ltp,premium=PREMIUM,is_ce=True)
-                ce.instrument = inst_dict['inst']
-                premium = inst_dict['ltp']
-                ce_var.inst = inst_dict['inst']
-                ce.assigned(LOTS)
-                #sbin = alice.get_instrument_by_symbol(exchange='NSE', symbol='SBIN' )
-                ce_var.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy ,
-                                                       inst=ce_var.inst,
-                                                       qty=25,
-                                                       order_type=OrderType.Market,
-                                                       product_type=ProductType.Normal,
-                                                       price=0.0
-                                                       )
-                # ce.place_order(type_of_order=Order.sell, price=premium)
-                subscribe()
-                ltp_update()
-                write_obj()
-            elif ce_var.first_order_sent is True:
-                order_id = ce_var.order_ids['order1']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    price = get_price(order_id)
-                    ce_var.prices = calc_levels_price(price)
-                    ce_var.level = Level.second
-                    ce_var.qty = 25
-                    write_obj()
-                    txt= f'CE order1 completed at price: {price}'
-                    logging.info(txt)
-                    log(txt)
-
-        if pe_var.level is Level.first:
-            # For PE position
-                if NEGATIVE_CHANGE > CHANGE and pe_var.first_order_sent is False:
-                    pe_var.first_order_sent = True
-                    txt=f'Negative Change: {NEGATIVE_CHANGE} taking Buy posn. '
-                    log(txt)
-                    logging.info(txt)
-                    inst_dict = calc_strike(ltp=nf.ltp,premium=PREMIUM,is_ce=False)
-                    pe.instrument = inst_dict['inst']
-                    premium = inst_dict['ltp']
-                    pe_var.inst = inst_dict['inst']
-                    pe.assigned(LOTS)
-                    pe_var.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
-                                                           inst=pe_var.inst,
-                                                           qty=25,
-                                                           order_type=OrderType.Limit,
-                                                           product_type=ProductType.Normal,
-                                                           price=premium
-                                                           )
-                    # ce.place_order(type_of_order=Order.sell, price=premium)
-                    subscribe()
-                    ltp_update()
-                    write_obj()
-                elif pe_var.first_order_sent is True:
-                    order_id = pe_var.order_ids['order1']
+        if var_class.level is Level.first:
+            if is_ce:
+                if POSITIVE_CHANGE > CHANGE:
+                    if var_class.first_order_sent is False:
+                        text = f'Index Change: {POSITIVE_CHANGE} taking posn'
+                        log(text)
+                        logging.info(text)
+                        inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
+                        var_class.inst = inst_dict['inst'] # for notification & record
+                        trade_var.instrument = inst_dict['inst']
+                        trade_var.assigned(LOTS)
+                        # sending buy order
+                        var_class.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
+                                                                inst=trade_var.instrument,
+                                                                qty=trade_var.qty,
+                                                                order_type=OrderType.Market,
+                                                                product_type=ProductType.Normal,
+                                                                price=0.0
+                                                                )
+                        var_class.first_order_sent = True
+                        subscribe()
+                        ltp_update()
+                elif var_class.first_order_sent is True:
+                    order_id = var_class.order_ids['order1']
                     if is_pending(order_id):
                         return
 
                     if is_complete(order_id):
                         price = get_price(order_id)
-                        pe_var.prices = calc_levels_price(price)
-                        pe_var.level = Level.second
-                        pe_var.qty = 25
+                        var_class.prices = calc_levels_price(first_entry=price, trade_var=trade_var)
+                        var_class.level = Level.second
+                        var_class.qty = trade_var.qty
                         write_obj()
-                        txt= f'PE order1 completed at price: {price}.'
+                        txt = f'{get_var_name(var_class)} order completed at price: {price}'
                         logging.info(txt)
                         log(txt)
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
 
-
-def second_level() :
-    try:
-        # For CE posns
-        if ce_var.level is Level.second:
-            if ce_var.order_ids['order2'] is None: # if order not sent
-                if ce.ltp > ce_var.prices['second_entry']:
-                    premium = ce.ltp
-                    ce_var.order_ids['order2'] = send_order(transaction_type=TransactionType.Buy,
-                           inst=ce_var.inst,
-                           qty=25,
-                           order_type=OrderType.Limit,
-                           product_type=ProductType.Normal,
-                           price=premium,
-                           )
-                    txt = f'CE Second entry criteria met. Ltp: {ce.ltp}'
-                    log(txt)
-                    logging.info(txt)
-            else: # if order already sent
-                order_id = ce_var.order_ids['order2']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    ce_var.level = Level.third
-                    ce_var.qty += 25
-                    write_obj()
-                    txt = f"CE order2 completed. "
-                    log(txt)
-                    logging.info(txt)
-
-
-        # For PE posns
-        if pe_var.level is Level.second:
-            if pe_var.order_ids['order2'] is None: # if order not sent
-                if pe.ltp > pe_var.prices['second_entry']:
-                    premium = pe.ltp
-                    pe_var.order_ids['order2'] = send_order(transaction_type=TransactionType.Buy ,
-                           inst=pe.instrument,
-                           qty=25,
-                           order_type=OrderType.Limit,
-                           product_type=ProductType.Normal,
-                           price=premium,
-                           )
-                    txt = f'PE Second entry criteria met. Ltp: {pe.ltp}'
-                    log(txt)
-                    logging.info(txt)
-            else: # if order already sent
-                order_id = pe_var.order_ids['order2']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    pe_var.level = Level.third
-                    pe_var.qty += 25
-                    write_obj()
-                    txt = 'PE order2 completed'
-                    logging.info(txt)
-                    log(txt)
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
-def third_level():
-    try:
-        # For CE posns
-        if ce_var.level is Level.third:
-            if ce_var.order_ids['order3'] is None: # if order not sent
-                if ce.ltp > ce_var.prices['third_entry']:
-                    buy_ce_hedge()
-                    premium = ce.ltp
-                    ce_var.order_ids['order3'] = send_order(transaction_type=TransactionType.Buy ,
-                           inst=ce.instrument,
-                           qty=25,
-                           order_type=OrderType.Limit,
-                           product_type=ProductType.Normal,
-                           price=premium
-                           )
-                    logging.info("CE Third entry criteria met and order sent.")
-            else: # if order already sent
-                order_id = ce_var.order_ids['order3']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    ce_var.level = Level.fourth
-                    ce_var.qty += 25
-                    write_obj()
-                    text = "CE order3 completed"
-                    logging.info(text)
-                    log(text)
-        # For PE posns
-        if pe_var.level is Level.third:
-            if pe_var.order_ids['order3'] is None: # if order not sent
-                if pe.ltp > pe_var.prices['third_entry']:
-                    buy_pe_hedge()
-                    premium = pe.ltp
-                    pe_var.order_ids['order3'] = send_order(transaction_type=TransactionType.Buy ,
-                           inst=pe.instrument,
-                           qty=25,
-                           order_type=OrderType.Limit,
-                           product_type=ProductType.Normal,
-                           price=premium
-                           )
-                    logging.info("PE Third entry criteria met and order sent.")
-            else: # if order already sent
-                order_id = pe_var.order_ids['order3']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    pe_var.level = Level.fourth
-                    pe_var.qty += 25
-                    write_obj()
-                    text = "PE order3 completed"
-                    logging.info(text)
-                    log(text)
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
-def fourth_level():
-    """SL check"""
-    try:
-        # For CE posns
-        if ce_var.level is Level.fourth:
-            if ce_var.order_ids['order_sl'] is None: # if order not sent
-                if ce.ltp > ce_var.prices['sl']:
-                    ce_var.order_ids['order_sl'] = send_order(transaction_type=TransactionType.Sell,
-                           inst=ce.instrument,
-                           qty=ce_var.qty,
-                           order_type=OrderType.Market,
-                           product_type=ProductType.Normal,
-                           price=0.0
-                           )
-                    logging.info("Tgt Triggered and order sent.")
-            else: # if order already sent
-                order_id = ce_var.order_ids['order_sl']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    reset_var(ce_var)
-                    check_hedge()
-                    write_obj()
-                    text = "CE positions Squared Off. "
-                    logging.info(text)
-                    log(text)
-
-        #For PE posns
-        if pe_var.level is Level.fourth:
-            if pe_var.order_ids['order_sl'] is None: # if order not sent
-                if pe.ltp > pe_var.prices['sl']:
-                    pe_var.order_ids['order_sl'] = send_order(transaction_type=TransactionType.Sell,
-                           inst=pe.instrument,
-                           qty=pe_var.qty,
-                           order_type=OrderType.Market,
-                           product_type=ProductType.Normal,
-                           price=0.0
-                           )
-                    logging.info("Tgt Triggered and order sent.")
-            else: # if order already sent
-                order_id = pe_var.order_ids['order_sl']
-                if is_pending(order_id):
-                    return
-
-                if is_complete(order_id):
-                    reset_var(pe_var)
-                    check_hedge()
-                    write_obj()
-                    text = "PE positions Squared Off."
-                    logging.info(text)
-                    log(text)
-
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
-def exit_at_low_level():
-    fn = 'exit_at_low_level'
-    try:
-        global EXPIRY_DAY, EXIT_LEVEL
-        # For CE posns
-        if ce_var.inst is not None:
-            if ce.ltp < EXIT_LEVEL:
-                #txt1 = f'CE exit level price triggered. Squaring off posns.'
-                ce.qty = ce_var.qty
-                ce_var.order_ids['order_sqoff'] = send_order(transaction_type=TransactionType.Buy,
-                           inst=ce.instrument,
-                           qty=ce_var.qty,
-                           order_type=OrderType.Market,
-                           product_type=ProductType.Normal,
-                           price=0.0
-                           )
-                reset_var(ce_var)
-                check_hedge()
-                write_obj()
-                log('CE exit_at_low_level')
-                logging.info('CE exit_at_low_level')
-
-        # For PE posns
-        if pe_var.inst is not None:
-            if pe.ltp < EXIT_LEVEL:
-                #txt1 = f'PE exit level price triggered. Squaring off posns.'
-                pe.qty = pe_var.qty
-                pe_var.order_ids['order_sqoff'] = send_order(transaction_type=TransactionType.Buy,
-                           inst=pe.instrument,
-                           qty=pe_var.qty,
-                           order_type=OrderType.Market,
-                           product_type=ProductType.Normal,
-                           price=0.0
-                           )
-                reset_var(pe_var)
-                check_hedge()
-                write_obj()
-                log('PE exit_at_low_level')
-                logging.info('PE exit_at_low_level')
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
-def buy_ce_hedge():
-    ''' Func to Buy qty 75 for hedging.'''
-    fn = 'buy_ce_hedge'
-    try:
-        if ce_var.buy_hedge is False:
-            inst_dict = calc_strike(ltp=nf.ltp,premium=4,is_ce=True)
-            ce_buy.instrument = inst_dict['inst']
-            premium = inst_dict['ltp']
-            ce_buy.assigned(qty=75)
-            ce_var.order_ids['order_hedge'] = send_order(transaction_type=TransactionType.Buy,
-                   inst=ce_buy.instrument,
-                   qty=75,
-                   order_type=OrderType.Market,
-                   product_type=ProductType.Normal,
-                   price=0.0
-                   )
-            subscribe()
-            ce_var.buy_hedge = True
-            write_obj()
-            if is_complete(ce_var.order_ids['order_hedge']):
-                logging.info("Buy hedge order completed.")
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
-def buy_pe_hedge():
-        ''' Func to Buy qty 75 for hedging.'''
-        fn = 'buy_pe_hedge'
-        try:
-            if pe_var.buy_hedge is False:
-                inst_dict = calc_strike(ltp=nf.ltp,premium=2,is_ce=False)
-                pe_buy.instrument = inst_dict['inst']
-                premium = inst_dict['ltp']
-                pe_buy.assigned(qty=75)
-                pe_var.order_ids['order_hedge'] = send_order(transaction_type=TransactionType.Buy,
-                       inst=pe_buy.instrument,
-                       qty=75,
+        if var_class.level is Level.second:
+            if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
+                # sending exit order
+                var_class.order_ids['order_tgt'] = send_order(transaction_type=TransactionType.Sell,
+                       inst=trade_var.instrument,
+                       qty=trade_var.qty,
                        order_type=OrderType.Market,
                        product_type=ProductType.Normal,
                        price=0.0
                        )
-                subscribe()
-                pe_var.buy_hedge = True
-                write_obj()
-                if is_complete(pe_var.order_ids['order_hedge']):
-                    logging.info("Buy hedge order completed.")
-        except Exception as e:
-            text = f"Error: {e}"
-            log(text)
-            logging.exception(text)
+                txt = f'{get_var_name(trade_var)} tgt criteria met. Ltp: {ce.ltp}'
+                log(txt)
+                logging.info(txt)
+            else: # if order already sent
+                order_id = var_class.order_ids['order_tgt']
+                if is_pending(order_id):
+                    return
+
+                if is_complete(order_id):
+                    var_class.level = Level.third
+                    write_obj()
+                    txt = f"{get_var_name(trade_var)} tgt order completed."
+                    log(txt)
+                    logging.info(txt)
+                    var_class.tgt_date = datetime.date.today()
+    except Exception as e:
+        text = f"Error: {e}"
+        log(text)
+        logging.exception(text)
 
 
 def read_obj() :
-    fn = 'read_obj'
-    global ce_var, pe_var, LOTS
-    try:
-        with open('obj.pkl', 'rb') as file:
-            ce_var, pe_var = pickle.load(file)
-        if ce_var.inst is not None:
-            ce.instrument = ce_var.inst
-            ce.assigned(LOTS)
-        if pe_var.inst is not None:
-            pe.instrument = pe_var.inst
-            pe.assigned(LOTS)
-        txt = 'Read all Objs'
-        logging.info(txt)
-        obj_report()
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
+    global ce_var, pe_var
+    ce_var, pe_var = read_pkl(file_path=config.path_variable_container)
+    obj_report()
 
 
 def write_obj() :
-    fn = 'write_obj'
     global ce, pe, ce_buy, pe_buy, ce_var, pe_var
     obj_list = [ce_var, pe_var]
-    try:
-        with open('obj.pkl', 'wb') as file:
-            pickle.dump(obj_list, file)
-        obj_report()
-        logging.info('Written all objs.')
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
+    write_pkl(obj=obj_list, file_path=config.path_variable_container)
+    obj_report()
 
 
 def today_expiry_day():
@@ -758,70 +425,73 @@ logger.info('\n ####################' \
 logger.info(f'Time Check: {get_time() }') 
 logger.info("All Modules imported successfully.")
 
-
+# initialisation process
 try:
-    # Exit if today is holiday
-    is_holiday_today()
-
     # create required directories
-    create_dir(dir_name)
+    create_dir(config.dir_name)
 
+    # logging time variables
+    time_cons = []
+    time_cons.append(f"Websocket Start Time: {config.WEBSOCKET_START_TIME}")
+    time_cons.append(f"Session Start Time: {config.SESSION_START_TIME}")
+    time_cons.append(f"Session End Time; {config.SESSION_END_TIME}")
+    for i in time_cons:
+        logging.info(i)
 except Exception as e:
     logging.exception(e)
 
 
-# Constants
-CHANGE = 150
-PREMIUM = 20
-# MAX_LOSS = 4000.0
-POSITIVE_CHANGE = 0
-NEGATIVE_CHANGE = 0
-# to check if today is Expiry day. True if today is Expiry
-EXPIRY_DAY = today_expiry_day()
-EXIT_LEVEL = 5.5
-LOTS=1 # Mention lots. Lots qty will be extracted from instrument.
-txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
-log(txt)
-logging.info(txt)
-
-WEBSOCKET_START_TIME = datetime.datetime.strptime("08:30:00", "%H:%M:%S").time()
-SESSION_START_TIME = datetime.datetime.strptime("09:14:59", "%H:%M:%S").time()
-SESSION_END_TIME = datetime.datetime.strptime("15:30:00", "%H:%M:%S").time()
-
-time_cons = []
-time_cons.append(f"Websocket Start Time: {WEBSOCKET_START_TIME}")
-time_cons.append(f"Session Start Time: {SESSION_START_TIME}")
-time_cons.append(f"Session End Time; {SESSION_END_TIME}")
-
-for i in time_cons:
-    logging.info(i)
-
-# Generating Session ID
-if config.alice is None:
-    logger.info("alice object is None. Calling get_session_id()")
-    get_session_id()
-    # session_id_generate()
-    logging.debug(f'alice obj after calling:{config.alice} ')   
-
-# Setting alice value from config file alice obj
-alice = config_alice
-
-# logging balance on csv. Try to maintain only one file
-# log_balance() # will be maintained in TradeNifty
-
-
-
-# Nifty Index Instrument
+# setting up program variables
 try:
-    NIFTY_INST = alice.get_instrument_by_symbol(exchange='INDICES', symbol=INDEX_NIFTY_SYMBOL)
+    # Exit if today is holiday
+    is_holiday_today()
+
+    # Constants
+    CHANGE = 150
+    PREMIUM = 20
+    # MAX_LOSS = 4000.0
+    POSITIVE_CHANGE = 0
+    NEGATIVE_CHANGE = 0
+    # to check if today is Expiry day. True if today is Expiry
+    EXPIRY_DAY = today_expiry_day()
+    EXIT_LEVEL = 5.5
+    LOTS=1 # Mention lots. Lots qty will be extracted from instrument.
+    QTY_ON_ERROR = 25
+    txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
+    log(txt)
+    logging.info(txt)
+
+    # Generating Session ID
+    if config.alice is None:
+        logger.info("alice object is None. Calling get_session_id()")
+        get_session_id()
+        # session_id_generate()
+        logging.debug(f'alice obj after calling:{config.alice} ')
+
+    # Setting alice value from config file alice obj
+    alice = config.alice
+
+    # logging balance on csv. Try to maintain only one file
+    # log_balance() # will be maintained in TradeNifty
+
+except Exception as e:
+    logging.exception(e)
+    log(f"{e}. Exiting......")
+    sys.exit()
+
+
+# setting var for Index Nifty & ce and pe var
+try:
+    # Nifty Index Instrument
+    NIFTY_INST = config.alice.get_instrument_by_symbol(exchange='INDICES', symbol=config.INDEX_NIFTY_SYMBOL)
     logging.info(f'Nifty_Inst retrieved: {NIFTY_INST}')
     
     # nf for Nifty Index declared for Trade Class
-    nf = Trade(alice=alice, paper_trade=True)
+    nf = Trade(alice=config.alice, paper_trade=True)
     logging.debug('nf declared for Trade class')
     
     nf.instrument = NIFTY_INST
-    nf.assigned(25)
+    nf.assigned(lots=LOTS, qty_on_error=QTY_ON_ERROR)
     
     txt= f'nf class defined. Inst: {nf.instrument}'
     logging.info(txt)
@@ -839,7 +509,7 @@ try:
     # interval : ["1", "D"] // indices: True or False
     logging.debug(f'historical data: {df}')
     
-    l=len(df['close']) - 1
+    l=len(df['close']) - 1 # getting index of last element
     p_close = df.loc[l]['close']
     
     txt = f'Nifty Previous Close: {p_close} '
@@ -864,7 +534,7 @@ try:
     check_hedge() 
     
     # Websocket Connecting
-    while get_time() < WEBSOCKET_START_TIME:
+    while get_time() < config.WEBSOCKET_START_TIME:
         sleep(30)
     
     log("WEBSOCKET_START_TIME(08:30) crossed.")
@@ -874,83 +544,75 @@ try:
     alice_websocket()
     
     #Waiting for session to start
-    while get_time() <= SESSION_START_TIME:
+    while get_time() <= config.SESSION_START_TIME:
         sleep(1)
         current_time=datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
     
-    log(f"SESSION_STARTED: {SESSION_START_TIME}.")
-    logging.info(f"SESSION_STARTED: {SESSION_START_TIME}.")
+    log(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
+    logging.info(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
     
     # subscribe for feeds (initially BN & Nifty)
-    subscribe()
-    
-    ltp_update()
+    subscribe() # only assigned instruments will get subscribed for ltp feeds
+    nf.ltp = 23532
+    ltp_update() # exit if not updated withing 2 minutes
+
     # Dummy Instrument retrieval checking
     strike=strike_calc(ltp=nf.ltp , base=50, strike_difference=0)
     we = str(weekly_expiry_calculator())
-    inst = nf.get_instrument_for_fno(symbol=FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike, is_ce=True)
+    dummy_inst = nf.get_instrument_for_fno(symbol=config.FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike,
+                                           is_ce=True)
     change_in_ltp(nf.ltp)
-    dummy_inst = f'Dummy Inst at ATM: {inst}, Ltp: {nf.ltp}, close: {p_close}, Change: {POSITIVE_CHANGE}'
-    logging.info(dummy_inst)
-    log(dummy_inst)
+    dummy_msg = f'Dummy Inst at ATM: {dummy_inst}, Ltp: {nf.ltp}, close: {p_close}, Change: {POSITIVE_CHANGE}'
+    logging.info(dummy_msg)
+    log(dummy_msg)
 except Exception as e:
     text = f"Error: {e}"
-    log(text)
+    log(f"{text}. Exiting....")
     logging.exception(text)
-    sys.exit(1)
+    sys.exit()
 
 
-# While loop
-logging.info('Entering While Loop')
-print(ce_var.order_ids['order1']) 
-while True:
-    # i+=1
-    # print(i)
+def strategy():
     fn = "Strategy"
-    try:
-        # For CE posns
-        if ce_var.level is Level.first:
-            first_level()
-        elif ce_var.level is Level.second:
-            second_level()
-        elif ce_var.level is Level.third:
-            third_level()
-        elif ce_var.level is Level.fourth:
-            fourth_level()
 
-        # For PE posns
-        if pe_var.level is Level.first:
-            first_level()
-        elif pe_var.level is Level.second:
-            second_level()
-        elif pe_var.level is Level.third:
-            third_level()
-        elif pe_var.level is Level.fourth:
-            fourth_level()
+    log('Entering While Loop')
+    while True:
 
-        #if EXPIRY_DAY is False:
-#            exit_at_low_level()
-            
-        
+        try:
+            check_change(var_class=ce_var, trade_var=ce, is_ce=True)
+            check_change(var_class=pe_var, trade_var=pe, is_ce=False)
 
-        # Sending report on every half an hour
-        if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
-                datetime.datetime.now().second == 0:
-            txt = f'Nifty: {nf.ltp} {POSITIVE_CHANGE}'
-            log(txt)
-            log(position_report()) 
-            sleep(2)
-            
-        # On Session Over @1530hrs break while loop
-        if get_time() >= SESSION_END_TIME:
-            log('Session End')
-            logging.info('Session End')
-            break
+            # Sending report on every half an hour
+            if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
+                    datetime.datetime.now().second == 0:
+                txt = f'Nifty: {nf.ltp} {POSITIVE_CHANGE}'
+                log(txt)
+                log(position_report())
+                sleep(2)
 
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
+            # On Session Over @1530hrs break while loop
+            if get_time() >= config.SESSION_END_TIME:
+                log('Session End')
+                logging.info('Session End')
+                break
+
+        except Exception as e:
+            text = f"Error: {e}"
+            log(text)
+            logging.exception(text)
+
+strategy_thread = threading.Thread(target=notification_worker)
+strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
+strategy_thread.start()
+
+start_order_feed_websocket()
+
+while True:
+    if get_time() >= config.SESSION_END_TIME:
+        log('Session End')
+        logging.info('Session End')
+        break
+    sleep(60)
 
 # Closing websocket & unsubscribe inst"""
 try:
@@ -1006,3 +668,5 @@ print("All notifications sent, exiting.")
 # Stop the worker thread
 notification_queue.put(None)  # Send a signal to stop the worker
 worker_thread.join()  # Wait for the worker thread to finish
+
+# read_pkl(file_path=config.path_order_status_feed)

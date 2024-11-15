@@ -155,7 +155,7 @@ def manage_order_status(order_msg):
         order_status_dict[order_id] ['rejreason']=order_msg['rejreason']
         logging.info(f'rejection reason updated for order id: {order_id}')
     # for logging
-    msg = dict(order_id = order_status_dict[order_msg['norenordno']])
+    msg= {order_id: order_status_dict[order_msg['norenordno']]}
     logging.info(msg)
 
     print(f"order_status_dict: {order_status_dict}")
