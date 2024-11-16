@@ -376,7 +376,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 txt = f'{get_var_name(trade_var)} tgt criteria met. Ltp: {ce.ltp}'
                 log(txt)
                 logging.info(txt)
-            else: # if order already sent
+            elif var_class.order_ids['order_tgt'] is not None: #if order already sent, var_class.order_ids['order_tgt'] in not None
                 order_id = var_class.order_ids['order_tgt']
                 if is_pending(order_id):
                     return
@@ -480,7 +480,7 @@ except Exception as e:
     sys.exit()
 
 
-# setting var for Index Nifty & ce and pe var
+# setting var for Index Nifty & ce and pe var & Sockets
 try:
     # Nifty Index Instrument
     NIFTY_INST = config.alice.get_instrument_by_symbol(exchange='INDICES', symbol=config.INDEX_NIFTY_SYMBOL)
@@ -542,6 +542,11 @@ try:
     
     # code for connect websocket
     alice_websocket()
+
+    # code for connect websocket for order feed updates
+    if config.order_Feed_required:
+        log("starting order feed")
+        start_order_feed_websocket()
     
     #Waiting for session to start
     while get_time() <= config.SESSION_START_TIME:
@@ -601,11 +606,11 @@ def strategy():
             log(text)
             logging.exception(text)
 
-strategy_thread = threading.Thread(target=notification_worker)
+strategy_thread = threading.Thread(target=strategy)
 strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
 strategy_thread.start()
 
-start_order_feed_websocket()
+
 
 while True:
     if get_time() >= config.SESSION_END_TIME:

@@ -20,7 +20,7 @@ print_notification = True
 order_status_dict = {}
 
 # set True for Order Feed
-Order_Feed_required = True
+order_Feed_required = True
 
 # ##############Constants#############################
 
