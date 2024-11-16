@@ -19,9 +19,6 @@ print_notification = True
 # live order status feed websocket OrderStatusFeed.py
 order_status_dict = {}
 
-# set True for Order Feed
-order_Feed_required = True
-
 # ##############Constants#############################
 
 # **********Define Trade class for Nifty 50******************
@@ -49,5 +46,22 @@ WEBSOCKET_START_TIME = datetime.datetime.strptime("08:30:00", "%H:%M:%S").time()
 SESSION_START_TIME = datetime.datetime.strptime("09:14:59", "%H:%M:%S").time()
 SESSION_END_TIME = datetime.datetime.strptime("15:30:00", "%H:%M:%S").time()
 
+# Program related changeable variables
 
+# set True for Order Feed
+order_Feed_required = True
+
+# Constants
+CHANGE = 150
+PREMIUM = 20
+MAX_LOSS = 4000.0
+POSITIVE_CHANGE = 0
+NEGATIVE_CHANGE = 0
+# to check if today is Expiry day. True if today is Expiry
+EXIT_LEVEL = 5.5
+LOTS=1 # Mention lots. Lots qty will be extracted from instrument.
+QTY_ON_ERROR = 25
+
+# log balance before executing program
+log_balance_required = False
 

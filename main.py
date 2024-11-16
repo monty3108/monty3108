@@ -82,7 +82,7 @@ class Variables :
         self.qty = 0
         self.buy_hedge = False
         self.prices = {}
-        self.last_sl_date= None
+        self.sl_date= None
         self.tgt_date = None
         self.order_ids = {
             'order1' : None,
@@ -90,10 +90,48 @@ class Variables :
             'order3' : None,
             'order_sl' : None,
             'order_tgt' : None,
-            'order_sqoff' : None,
+            'order_square_off' : None,
             'order_hedge': None
 
         }
+
+
+def reset_var(var: Variables) :
+    """Func to reset the default values of variable of Variables Class"""
+    fn = 'reset_var'
+    try:
+        global CHANGE
+        var.change = CHANGE
+        var.position = False
+        var.first_order_sent = False
+        var.level = Level.first
+        var.inst = None
+        var.qty = 0
+        var.buy_hedge = False
+        var.prices = {}
+        var.order_ids = {
+            'order1' : None,
+            'order2' : None,
+            'order3' : None,
+            'order_sl' : None,
+            'order_tgt' : None,
+            'order_square_off' : None,
+            'order_hedge' : None
+        }
+        if ce_var.inst is None:
+            ce.instrument = None # resetting Trade variable
+            logging.info('ce inst set to None')
+        if pe_var.inst is None:
+            pe.instrument = None # resetting Trade variable
+            logging.info('pe inst set to None')
+        txt = f'{get_var_name(var)} is reset.'
+        write_obj()
+        log(txt)
+        logging.info(txt)
+    except Exception as e:
+        text = f"Error: {e}"
+        log(text)
+        logging.exception(text)
 
 
 def get_var_name(var):
@@ -108,43 +146,6 @@ def get_var_name(var):
         logging.exception(text)
 
 
-def reset_var(var) :
-    """Func to reset the default values of variable of Variables Class"""
-    fn = 'reser_var'
-    try:
-        global CHANGE
-        var.change = CHANGE
-        var.position = False
-        var.first_order_sent = False
-        var.level = Level.first
-        var.dummy_inst = None
-        var.qty = 0
-        var.buy_hedge = False
-        var.prices = {}
-        var.order_ids = {
-            'order1' : None,
-            'order2' : None,
-            'order3' : None,
-            'order_sl' : None,
-            'order_tgt' : None,
-            'order_sqoff' : None
-        }
-        if ce_var.inst is None:
-            ce.instrument = None
-            logging.info('ce inst set to None')
-        if pe_var.inst is None:
-            pe.instrument = None
-            logging.info('pe inst set to None')
-        txt = f'{get_var_name(var)} is reset.'
-        write_obj()
-        log(txt)
-        logging.info(txt)
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-
-
 def check_expiry():
     """Func to check expiry of ce_var & pe_var inst. If expired then reset to default."""
     fn = 'check_expiry'
@@ -156,7 +157,7 @@ def check_expiry():
                 date_str = i.inst.expiry
                 i_date = datetime.datetime.strptime(date_str, date_format)
                 if i_date.date() < weekly_expiry_calculator():
-                    text = f'{i.inst} is expired. Resetting {get_var_name(i)}.'
+                    text = f'Resetting {get_var_name(i)}. {i.inst} is expired.'
                     log(text)
                     logging.info(text)
                     reset_var(i)
@@ -175,24 +176,23 @@ def obj_report():
     fn = 'obj_report'
     try:
         obj_list= [ce_var, pe_var]
-        report = []
+        report = {}
         for obj in obj_list:
-            n = get_var_name(obj)
-            a = obj.change
-            b = obj.first_order_sent
-            c = obj.level.value
-            d = obj.inst
-            eo = obj.qty
-            f = obj.buy_hedge
-            g = obj.prices
-            h = obj.order_ids
-            txt = f'{n}: Change: {a} First_order: { b} Level: {c} Inst: {d} Qty: {eo} Buy_hedge: {f} Prices: {g} Ids: {h} .'
-            if d is None:
-                report.append(f'{n}: None')
+            if obj.inst:
+                report[get_var_name(obj)] = dict(
+                Change = obj.change,
+                first_order_sent = obj.first_order_sent,
+                level = obj.level.value,
+                inst = obj.inst[3],
+                qty = obj.qty,
+                buy_hedge = obj.buy_hedge,
+                prices = obj.prices,
+                order_ids = obj.order_ids,
+                )
             else:
-                report.append(txt)
-        # dict_report= {'ce': report[0], 'pe' : report[1]}
-        text = f'Obj Report: {report}'
+                report[get_var_name(obj)] = None
+        msg = json.dumps(report, indent=4)
+        text = f'Obj Report: \n {msg}'
         log(text)
         logging.info(text)
     except Exception as e:
@@ -321,6 +321,49 @@ def change_in_ltp(current_ltp):
         logging.info(text)
 
 
+def read_obj() :
+    """customised func for this program. Run after initialisation of required variables."""
+    global ce_var, pe_var
+    path = config.path_variable_container
+    if file_exist(path):
+        ce_var, pe_var = read_pkl(file_path=path)
+    else:
+        logging.info(f'{path} does not exist. Writing new files.')
+        write_obj()
+    obj_report()
+
+
+def write_obj() :
+    """customised func for this program. Run after initialisation of required variables."""
+    global ce_var, pe_var
+    path = config.path_variable_container
+    obj_list = [ce_var, pe_var]
+    write_pkl(obj=obj_list, file_path=path)
+    obj_report()
+
+
+def today_expiry_day():
+    '''func to return True if today is Thu Expiry Day'''
+    fn = "today_expiry_day"
+    try:
+        we = weekly_expiry_calculator()
+        today_date = datetime.date.today()
+        return we == today_date
+    except Exception as e:
+        text = f"Error: {e}"
+        log(text)
+        logging.exception(text)
+        return None
+
+
+def tgt_hit_today(var: Variables):
+    """return true if tgt achieved today"""
+    if var.tgt_date is None:
+        return False
+    else:
+        return var.tgt_date == today_date()
+
+
 def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
     fn='first_level'
 
@@ -393,34 +436,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
         log(text)
         logging.exception(text)
 
-
-def read_obj() :
-    global ce_var, pe_var
-    ce_var, pe_var = read_pkl(file_path=config.path_variable_container)
-    obj_report()
-
-
-def write_obj() :
-    global ce, pe, ce_buy, pe_buy, ce_var, pe_var
-    obj_list = [ce_var, pe_var]
-    write_pkl(obj=obj_list, file_path=config.path_variable_container)
-    obj_report()
-
-
-def today_expiry_day():
-    '''func to return True if today is Thu Expiry Day'''
-    fn = "today_expiry_day"
-    try:
-        we = weekly_expiry_calculator()
-        today_date = datetime.date.today()
-        return we == today_date
-    except Exception as e:
-        text = f"Error: {e}"
-        log(text)
-        logging.exception(text)
-        return None
-
-logger.info('\n ####################' \
+logger.info('\n ####################'
 '\n **********New Log*************\n\n') 
 logger.info(f'Time Check: {get_time() }') 
 logger.info("All Modules imported successfully.")
@@ -447,16 +463,16 @@ try:
     is_holiday_today()
 
     # Constants
-    CHANGE = 150
-    PREMIUM = 20
+    CHANGE = config.CHANGE
+    PREMIUM = config.PREMIUM
     # MAX_LOSS = 4000.0
-    POSITIVE_CHANGE = 0
-    NEGATIVE_CHANGE = 0
+    POSITIVE_CHANGE = config.POSITIVE_CHANGE
+    NEGATIVE_CHANGE = config.NEGATIVE_CHANGE
     # to check if today is Expiry day. True if today is Expiry
     EXPIRY_DAY = today_expiry_day()
-    EXIT_LEVEL = 5.5
-    LOTS=1 # Mention lots. Lots qty will be extracted from instrument.
-    QTY_ON_ERROR = 25
+    EXIT_LEVEL = config.EXIT_LEVEL
+    LOTS= config.LOTS # Mention lots. Lots qty will be extracted from instrument.
+    QTY_ON_ERROR = config.QTY_ON_ERROR
     txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
     log(txt)
     logging.info(txt)
@@ -472,7 +488,8 @@ try:
     alice = config.alice
 
     # logging balance on csv. Try to maintain only one file
-    # log_balance() # will be maintained in TradeNifty
+    if config.log_balance_required:
+        log_balance() # will be maintained in TradeNifty
 
 except Exception as e:
     logging.exception(e)
@@ -531,7 +548,7 @@ try:
     # Reading all objects
     read_obj()
     check_expiry()
-    check_hedge() 
+    # check_hedge()
     
     # Websocket Connecting
     while get_time() < config.WEBSOCKET_START_TIME:
@@ -584,8 +601,11 @@ def strategy():
     while True:
 
         try:
-            check_change(var_class=ce_var, trade_var=ce, is_ce=True)
-            check_change(var_class=pe_var, trade_var=pe, is_ce=False)
+            if not tgt_hit_today(ce_var):
+                check_change(var_class=ce_var, trade_var=ce, is_ce=True)
+
+            if not tgt_hit_today(pe_var):
+                check_change(var_class=pe_var, trade_var=pe, is_ce=False)
 
             # Sending report on every half an hour
             if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \

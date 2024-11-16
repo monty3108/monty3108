@@ -189,11 +189,18 @@ def create_dir(dir_name: list):
             logging.info(f'{dir} created successfully')
 
 
+def today_date():
+    """func to return today's date"""
+    return datetime.date.today()
+
 def is_holiday_today():
-    """Func to exit the code if today is Holiday""" 
+    """Func to exit the code if today is Holiday"""
+    fn = "is_holiday_today"
     today_date = datetime.date.today()
     if is_holiday(today_date):
-        logging.info('Today is holiday. Exiting the Algo.')
+        msg = 'Today is holiday. Exiting the Algo.'
+        my_logger(data_to_log=msg, fn=fn, bot=True)
+        logging.info(msg)
         sys.exit()
     else:
         logging.info('Today is not holiday.')
