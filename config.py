@@ -10,10 +10,10 @@ import datetime
 alice = None
 
 # set True for receiving notifications on Telegram
-notification = False
+notification = True
 
 # set True to print all log notifications
-print_notification = True
+print_notification = False
 
 # variable to maintain status of all orders to be updated by Order_Manager.py and
 # live order status feed websocket OrderStatusFeed.py
@@ -65,3 +65,7 @@ QTY_ON_ERROR = 25
 # log balance before executing program
 log_balance_required = False
 
+# files required to send
+# pending to integrate in main.py
+file_app_logs = True
+delete_file_data = True

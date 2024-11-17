@@ -695,7 +695,8 @@ except Exception as e:
 
 # Sending required logs to Telegram
 try:
-    docs_to_send = ["app_logs.txt", "data.txt", "logs/trade_log.csv",  "logs/balance.csv"]
+    # docs_to_send = ["app_logs.txt", "data.txt", "logs/trade_log.csv",  "logs/balance.csv"]
+    docs_to_send = ["app_logs.txt", "data.txt"]
     bot_token = '5398501864:AAFEn7ljDrKOVkXzhWX4P_khX9Xk-E8FicE'
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
     bot_chat_id = ['5162043562']
