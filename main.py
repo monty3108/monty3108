@@ -178,6 +178,10 @@ def obj_report():
         obj_list= [ce_var, pe_var]
         report = {}
         for obj in obj_list:
+            if tgt_hit_today(obj):
+                t_date = json.dumps(obj.tgt_date.strftime("%Y-%m-%d"))
+            else:
+                t_date = None
             if obj.inst:
                 report[get_var_name(obj)] = dict(
                 Change = obj.change,
@@ -188,6 +192,7 @@ def obj_report():
                 buy_hedge = obj.buy_hedge,
                 prices = obj.prices,
                 order_ids = obj.order_ids,
+                tgt_date = t_date
                 )
             else:
                 report[get_var_name(obj)] = None
@@ -330,7 +335,7 @@ def read_obj() :
     else:
         logging.info(f'{path} does not exist. Writing new files.')
         write_obj()
-    obj_report()
+    # obj_report()
 
 
 def write_obj() :
@@ -391,20 +396,44 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                         var_class.first_order_sent = True
                         subscribe()
                         ltp_update()
-                elif var_class.first_order_sent is True:
-                    order_id = var_class.order_ids['order1']
-                    if is_pending(order_id):
-                        return
 
-                    if is_complete(order_id):
-                        price = get_price(order_id)
-                        var_class.prices = calc_levels_price(first_entry=price, trade_var=trade_var)
-                        var_class.level = Level.second
-                        var_class.qty = trade_var.qty
-                        write_obj()
-                        txt = f'{get_var_name(var_class)} order completed at price: {price}'
-                        logging.info(txt)
-                        log(txt)
+            else:
+                if NEGATIVE_CHANGE > CHANGE:
+                    if var_class.first_order_sent is False:
+                        text = f'Index Change: {NEGATIVE_CHANGE} taking posn'
+                        log(text)
+                        logging.info(text)
+                        inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
+                        var_class.inst = inst_dict['inst'] # for notification & record
+                        trade_var.instrument = inst_dict['inst']
+                        trade_var.assigned(LOTS)
+                        # sending buy order
+                        var_class.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
+                                                                inst=trade_var.instrument,
+                                                                qty=trade_var.qty,
+                                                                order_type=OrderType.Market,
+                                                                product_type=ProductType.Normal,
+                                                                price=0.0
+                                                                )
+                        var_class.first_order_sent = True
+                        subscribe()
+                        ltp_update()
+
+
+            if var_class.first_order_sent is True:
+                order_id = var_class.order_ids['order1']
+                if is_pending(order_id):
+                    return
+
+                if is_complete(order_id):
+                    price = get_price(order_id)
+                    var_class.prices = calc_levels_price(first_entry=price, trade_var=trade_var)
+                    var_class.level = Level.second
+                    var_class.qty = trade_var.qty
+                    write_obj()
+                    txt = f'{get_var_name(var_class)} order completed at price: {price}'
+                    logging.info(txt)
+                    log(txt)
 
         if var_class.level is Level.second:
             if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
@@ -435,6 +464,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
         text = f"Error: {e}"
         log(text)
         logging.exception(text)
+        sys.exit()
 
 logger.info('\n ####################'
 '\n **********New Log*************\n\n') 
@@ -607,6 +637,11 @@ def strategy():
             if not tgt_hit_today(pe_var):
                 check_change(var_class=pe_var, trade_var=pe, is_ce=False)
 
+            if tgt_hit_today(ce_var) and tgt_hit_today(pe_var):
+                msg= "both tgts hits. breaking while loop"
+                log(msg)
+                logging.info(msg)
+                break
             # Sending report on every half an hour
             if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
                     datetime.datetime.now().second == 0:
@@ -625,6 +660,7 @@ def strategy():
             text = f"Error: {e}"
             log(text)
             logging.exception(text)
+            sys.exit()
 
 strategy_thread = threading.Thread(target=strategy)
 strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
