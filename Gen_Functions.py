@@ -212,6 +212,31 @@ def file_exist(file_path):
         return True
     else:
         return False
+
     
+def day_of_week():
+    """Return current day: Mon, Tue, etc"""
+
+    # Get today's date
+    today_date = datetime.date.today()
+    
+    # Get the day of the week
+    # Mon, Tue
+    day_of_week = today_date.strftime("%a")
+    
+    # logging.info(f"Today's day is: {day_of_week}" )
+    return day_of_week
+  
+ 
+def quit_on_days(days_list: list) :
+   fn="quit_on_days" 
+   """quit on given days"""
+   logging.info(f"List of Days to quit program: {days_list}.") 
+   if day_of_week() in days_list:
+       msg = f'progm is designed to quit on {day_of_week()}. Exiting......... '
+       print(msg) 
+       my_logger(data_to_log=msg, fn=fn, bot=True) 
+       logging.info(msg)
+       sys.exit(1)
 
 
