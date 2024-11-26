@@ -764,9 +764,9 @@ def log_trade_book() :
                 avg_price = float(log['Price'])
                 tran_type =  log['Trantype']
                 if tran_type == 'S' :
-                    amount = (qty*avg_price)
+                    amount = round(qty*avg_price,2)
                 else:
-                    amount = (qty*avg_price)*(-1)
+                    amount = round((qty * avg_price * -1),2)
                 trade_log = {
                 "Exchtime": log['Exchtime'], 
                 "Tsym": log['Tsym'] , 
@@ -783,7 +783,7 @@ def log_trade_book() :
             df = pd.DataFrame(trade_log_list)
             # Converting str time to datetime
             df['Exchtime'] = pd.to_datetime(df['Exchtime'], format='%d-%m-%Y %H:%M:%S' )
-            file_path = 'logs/trade_log.csv' # path for csv file
+            file_path = config.path_trade_log # path for csv file
             file_writer(df, file_path) # For writing a new file else append
             
             logging.info('Adding Cum Sum in trade_log.csv')
@@ -791,7 +791,7 @@ def log_trade_book() :
             df1['Exchtime'] = pd.to_datetime(df1['Exchtime'], format='%Y-%m-%d %H:%M:%S' )
             df1 = df1.sort_values(by='Exchtime') # Sorting rows
             logging.debug("Values sorted by exchtime") 
-            df1['Profit'] = df1['Amount'].cumsum()
+            df1['Profit'] = round(df1['Amount'].cumsum(),2)
             df1.to_csv(file_path, index=False)  # rewriting existing file
             logging.info('trade_log updated & exiting') 
             
@@ -835,7 +835,7 @@ def log_balance() :
     """Func to log balance on Day Start/End in dir logs/balance.csv"""
     try: 
         global alice
-        path = 'logs/balance.csv'
+        path = config.path_balance
         logs = alice.get_balance()
         logging.debug(f'get_balance response: {logs} ')
         #print(json.dumps(logs, indent=4)) 

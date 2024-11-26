@@ -40,6 +40,7 @@ path_variable_container = "pkl_obj/variable_container.pkl"
 
 # * under dir logs
 path_balance = "logs/balance.csv"
+path_trade_log = "logs/trade_log.csv"
 
 # Variables related to timings
 WEBSOCKET_START_TIME = datetime.datetime.strptime("08:30:00", "%H:%M:%S").time()
