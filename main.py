@@ -178,8 +178,10 @@ def obj_report():
         obj_list= [ce_var, pe_var]
         report = {}
         for obj in obj_list:
-            if tgt_hit_today(obj):
-                t_date = json.dumps(obj.tgt_date.strftime("%Y-%m-%d"))
+            if obj.tgt_date:
+                # t_date = json.dumps(obj.tgt_date.strftime("%Y-%m-%d"))
+                t_date = obj.tgt_date.isoformat()
+                print(t_date)
             else:
                 t_date = None
             if obj.inst:
@@ -435,7 +437,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     logging.info(txt)
                     log(txt)
 
-        if var_class.level is Level.second:
+        elif var_class.level is Level.second:
             if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
                 # sending exit order
                 var_class.order_ids['order_tgt'] = send_order(transaction_type=TransactionType.Sell,
@@ -456,10 +458,19 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 if is_complete(order_id):
                     var_class.level = Level.third
                     write_obj()
-                    txt = f"{get_var_name(trade_var)} tgt order completed."
+                    txt = f"{get_var_name(trade_var)} tgt order completed at {get_price(order_id)}."
                     log(txt)
                     logging.info(txt)
                     var_class.tgt_date = datetime.date.today()
+
+        elif var_class.level is Level.third:
+            # reset var to initial stage when today's date crossed tgt date
+            if var_class.tgt_date < today_date():
+                logging.info(f"{get_var_name(var_class)} tgt date crossed. Resetting this variable for fresh entry.")
+                reset_var(var=var_class)
+
+
+
     except Exception as e:
         text = f"Error: {e}"
         log(text)
