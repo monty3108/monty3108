@@ -706,7 +706,7 @@ strategy_thread = threading.Thread(target=strategy)
 strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
 strategy_thread.start()
 
-
+pending_checks()
 
 while True:
     if get_time() >= config.SESSION_END_TIME:

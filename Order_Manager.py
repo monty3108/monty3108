@@ -4,6 +4,8 @@ from pya3.alicebluepy import *
 import config
 from Gen_Functions import read_pkl, round_nearest, write_pkl
 from Logger_Module import *
+import threading
+import time
 
 alice = None
 
@@ -53,7 +55,10 @@ def send_order(transaction_type,
 def check_order_status():
     fn = "check_order_status"
     from config import order_status_dict
-    print(f'order_status_dict: {order_status_dict}')
+    # print(f'order_status_dict: {order_status_dict}')
+    if get_time()< config.SESSION_START_TIME:
+        reset_order_files()
+
     try:
         global alice
         alice = config.alice
@@ -136,13 +141,17 @@ def check_order_status():
 
             # writing variables to file
             files = [rejected_order_id, order_id_response]
-            file_path = ['pkl_obj/rejected_order_id.pkl', 'pkl_obj/order_id_response.pkl']
+            file_path = [config.path_rejected_order_id, config.path_order_id_response]
             for i in range(len(files)):
                 write_pkl(obj=files[i], file_path=file_path[i])
+
+            logging.info("check_order_status executed.")
         else:
             text = f'get order history response: {response}'
             my_logger(data_to_log=text, fn=fn, bot=True)
             logging.info(text)
+
+
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
@@ -193,7 +202,7 @@ def reset_order_files():
     """func to clear files: order_id_response.pkl and rejected_order_id.pkl"""
     fn = 'reset_order_files'
     try:
-        file_path = ['pkl_obj/rejected_order_id.pkl', 'pkl_obj/order_id_response.pkl']
+        file_path = [config.path_rejected_order_id, config.path_order_id_response]
         for i in range(len(file_path)):
             x = read_pkl(file_path=file_path[i])
             x.clear()
@@ -204,3 +213,35 @@ def reset_order_files():
         my_logger(data_to_log=text, fn=fn, bot=True)
         logging.exception(text)
 
+def has_pending_orders():
+    fn = 'has_pending_orders'
+    try:
+        pending_status_list = ['open', 'pending', 'trigger_pending', 'trigger pending']
+        orders = config.order_status_dict
+        for order in orders:
+            if orders[order]['status'].lower() in pending_status_list:
+                return True
+
+        return False
+    except Exception as e:
+        text = f"Error: {e}"
+        my_logger(data_to_log=text, fn=fn, bot=False)
+        logging.exception(text)
+
+
+def pending_checks() :
+    fn = 'pending_checks'
+    check_order_status()
+    try:
+        if get_time() < config.SESSION_END_TIME:
+            if has_pending_orders():
+                logging.info('sch 5 secs')
+                threading.Timer(5, pending_checks).start()  # Schedule the task to run after 1 minute
+            else:
+                logging.info('sch 10 secs')
+                threading.Timer(10, pending_checks).start()  # Schedule the task to run after 5 minutes
+
+    except Exception as e:
+        text = f"Error: {e}"
+        my_logger(data_to_log=text, fn=fn, bot=False)
+        logging.exception(text)

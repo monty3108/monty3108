@@ -37,6 +37,7 @@ path_order_id_response = "pkl_obj/order_id_response.pkl"
 path_order_status_feed = "pkl_obj/order_status_feed.pkl"
 path_session    = "pkl_obj/session.pkl"
 path_variable_container = "pkl_obj/variable_container.pkl"
+path_rejected_order_id = "pkl_obj/rejected_order_id.pkl"
 
 # * under dir logs
 path_balance = "logs/balance.csv"
