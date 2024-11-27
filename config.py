@@ -10,10 +10,10 @@ import datetime
 alice = None
 
 # set True for receiving notifications on Telegram
-notification = True
+notification = False
 
 # set True to print all log notifications
-print_notification = False
+print_notification = True
 
 # variable to maintain status of all orders to be updated by Order_Manager.py and
 # live order status feed websocket OrderStatusFeed.py

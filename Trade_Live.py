@@ -133,7 +133,7 @@ class Trade:
                 self.symbol = self.instrument[2]
             # t = datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S")
             text = f"{self.symbol} assigned."
-            my_logger(data_to_log=text, fn=fn, bot=False)
+            my_logger(data_to_log=text, fn=fn, bot=True)
             if self.feed:
                 file_name = f"{self.token}.csv"
                 result_file_exist = os.path.exists(file_name)

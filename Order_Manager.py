@@ -155,7 +155,7 @@ def is_pending(order_id):
     try:
         from config import order_status_dict
         status = order_status_dict[order_id]['status'].lower()
-        return status == 'open'
+        return status == 'open' or status == 'trigger_pending' or status == 'trigger pending' or status == 'pending'
         # check_order_status()
         # pending_order_id = read_pkl(file_path='pkl_obj/pending_order_id.pkl')
         # return order_id in pending_order_id

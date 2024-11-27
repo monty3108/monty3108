@@ -330,10 +330,16 @@ def change_in_ltp(current_ltp):
 
 def read_obj() :
     """customised func for this program. Run after initialisation of required variables."""
-    global ce_var, pe_var
+    global ce_var, pe_var, ce, pe
     path = config.path_variable_container
     if file_exist(path):
         ce_var, pe_var = read_pkl(file_path=path)
+        if ce_var.inst:
+            ce.instrument = ce_var.inst
+            ce.assigned(lots=config.LOTS)
+        if pe_var.inst:
+            pe.instrument = pe_var.inst
+            pe.assigned(lots=config.LOTS)
     else:
         logging.info(f'{path} does not exist. Writing new files.')
         write_obj()
@@ -372,7 +378,7 @@ def tgt_hit_today(var: Variables):
 
 
 def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
-    fn='first_level'
+    fn='check_change'
 
     change_in_ltp(nf.ltp)
     try:
