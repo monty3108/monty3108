@@ -301,8 +301,8 @@ def calc_levels_price(first_entry, trade_var: Trade):
 
         dict = {
         'entry_price' : x,
-        'tgt_price' : y,
-        'max_loss' : z
+        'tgt_price' : round_nearest(y),
+        'max_loss' : round_nearest(z)
         }
         logging.info(f'Calculated level prices: {dict}')
         return dict
@@ -481,6 +481,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                             trigger_price=round_nearest(trigger_price)
                         )
                         logging.info(f"Stepping UP trailing tgt. Not tgt price: {var_class.prices['tgt_price']}")
+                        write_obj()
                     return
 
                 if is_complete(order_id):
