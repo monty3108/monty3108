@@ -445,20 +445,42 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
 
         elif var_class.level is Level.second:
             if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
-                # sending exit order
-                var_class.order_ids['order_tgt'] = send_order(transaction_type=TransactionType.Sell,
-                       inst=trade_var.instrument,
-                       qty=trade_var.qty,
-                       order_type=OrderType.Market,
-                       product_type=ProductType.Normal,
-                       price=0.0
-                       )
-                txt = f'{get_var_name(trade_var)} tgt criteria met. Ltp: {ce.ltp}'
+                # sending trailing sl/ exit order
+                price = var_class.prices['tgt_price']-2
+                trigger_price = var_class.prices['tgt_price']-1
+                var_class.order_ids['order_tgt'] = send_order(
+                    transaction_type=TransactionType.Sell,
+                    inst=trade_var.instrument,
+                    qty=trade_var.qty,
+                    order_type=OrderType.StopLossLimit,
+                    product_type=ProductType.Normal,
+                    price=round_nearest(price),
+                    trigger_price=round_nearest(trigger_price)
+                )
+                txt = f'{get_var_name(trade_var)} 1st tgt criteria met. Ltp: {ce.ltp}'
                 log(txt)
                 logging.info(txt)
-            elif var_class.order_ids['order_tgt'] is not None: #if order already sent, var_class.order_ids['order_tgt'] in not None
+
+            # if order already sent, var_class.order_ids['order_tgt'] in not None
+            elif var_class.order_ids['order_tgt'] is not None:
                 order_id = var_class.order_ids['order_tgt']
+                # if order is not completed & there is scope for modification
                 if is_pending(order_id):
+                    if trade_var.ltp >= var_class.prices['tgt_price'] + 20:
+                        var_class.prices['tgt_price'] += 10
+                        price = var_class.prices['tgt_price'] - 2
+                        trigger_price = var_class.prices['tgt_price'] - 1
+                        alice.modify_order(
+                            transaction_type=TransactionType.Sell,
+                            instrument=trade_var.instrument,
+                            order_id=order_id,
+                            quantity=trade_var.qty,
+                            order_type=OrderType.StopLossLimit,
+                            product_type=ProductType.Normal,
+                            price=round_nearest(price),
+                            trigger_price=round_nearest(trigger_price)
+                        )
+                        logging.info(f"Stepping UP trailing tgt. Not tgt price: {var_class.prices['tgt_price']}")
                     return
 
                 if is_complete(order_id):
