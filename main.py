@@ -343,7 +343,7 @@ def read_obj() :
     else:
         logging.info(f'{path} does not exist. Writing new files.')
         write_obj()
-    # obj_report()
+    obj_report()
 
 
 def write_obj() :
@@ -686,8 +686,8 @@ def strategy():
             if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
                     datetime.datetime.now().second == 0:
                 txt = f'Nifty: {nf.ltp} {POSITIVE_CHANGE}'
-                log(txt)
-                log(position_report())
+                # log(txt)
+                log(position_report(add_to_report=txt))
                 sleep(2)
 
             # On Session Over @1530hrs break while loop
@@ -706,7 +706,9 @@ strategy_thread = threading.Thread(target=strategy)
 strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
 strategy_thread.start()
 
-pending_checks()
+pending_check_thread = threading.Thread(target=pending_checks)
+pending_check_thread.daemon = True
+pending_check_thread.start()
 
 while True:
     if get_time() >= config.SESSION_END_TIME:
@@ -715,7 +717,7 @@ while True:
         break
     sleep(60)
 
-# Closing websocket & unsubscribe inst"""
+# Closing websocket & unsubscribe inst
 try:
     unsubscribe()
     alice.stop_websocket()

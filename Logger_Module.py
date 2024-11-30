@@ -81,7 +81,7 @@ logging.basicConfig(filename='app_logs.txt',
 #     format=FORMAT,
 #     datefmt='%d-%b-%y %H:%M:%S')
 
-# Creating an logging object
+# Creating a logging object
 logger = logging.getLogger()
 
 # comment out the following code for writing in log file

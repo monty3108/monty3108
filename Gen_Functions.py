@@ -161,7 +161,7 @@ def read_pkl(file_path):
             obj = pickle.load(file)
 
         txt = f'{file_path} reading successfully'
-        logging.info(txt)
+        logging.debug(txt)
         return obj
     except Exception as e:
         text = f"Error: {e}"
@@ -173,7 +173,7 @@ def write_pkl(obj, file_path):
     try:
         with open(file_path, 'wb') as file:
             pickle.dump(obj, file)
-        logging.info(f'{file_path} written successfully.')
+        logging.debug(f'{file_path} written successfully.')
     except Exception as e:
         text = f"Error: {e}"
         logging.exception(text)

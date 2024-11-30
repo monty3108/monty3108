@@ -872,13 +872,13 @@ def log_balance() :
         logging.error(text)
        
      
-def position_report() :
+def position_report(add_to_report:list=None ) :
     """Func to return report of all active positions"""
     fn= 'position_report' 
     try:
         global alice
         report = [] 
-        r_dict = {} 
+        r_dict = {}
         pnl = 0
         response_is_list = False
         response = alice.get_netwise_positions()
@@ -902,7 +902,9 @@ def position_report() :
             pnl += float(res['realisedprofitloss']) + float( res['unrealisedprofitloss']) 
             report.append(r_dict) 
         r_dict = {'Total PnL' : pnl} 
-        report.append(r_dict) 
+        report.append(r_dict)
+        if add_to_report:
+            report += add_to_report
         return json.dumps(report, indent=4)
     except Exception as e:
         text = f"{e}"

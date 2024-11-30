@@ -56,12 +56,15 @@ def check_order_status():
     fn = "check_order_status"
     from config import order_status_dict
     # print(f'order_status_dict: {order_status_dict}')
-    if get_time()< config.SESSION_START_TIME:
-        reset_order_files()
+
 
     try:
         global alice
         alice = config.alice
+
+        if get_time() < config.SESSION_START_TIME:
+            reset_order_files()
+
         response = alice.get_order_history('')
 
         if type(response) is list:
@@ -190,7 +193,7 @@ def get_price(order_id):
     fn = 'get_price'
     try:
         if is_complete(order_id):
-            order_id_response = read_pkl(file_path='pkl_obj/order_id_response.pkl')
+            order_id_response = read_pkl(file_path=config.path_order_id_response)
             return order_id_response[order_id]['average_price']
     except Exception as e:
         text = f"Error: {e}"
@@ -232,15 +235,22 @@ def has_pending_orders():
 def pending_checks() :
     fn = 'pending_checks'
     check_order_status()
+
     try:
         if get_time() < config.SESSION_END_TIME:
-            if has_pending_orders():
-                logging.info('sch 5 secs')
-                threading.Timer(5, pending_checks).start()  # Schedule the task to run after 1 minute
-            else:
-                logging.info('sch 10 secs')
-                threading.Timer(10, pending_checks).start()  # Schedule the task to run after 5 minutes
+            if len(read_pkl(config.path_order_id_response))>0:
 
+                if has_pending_orders():
+                    logging.debug('Pending orders. Running after 1 mins')
+                    threading.Timer(60, pending_checks).start()  # Schedule the task to run after 1 minute
+                else:
+                    logging.debug('No pending orders. Running after 5 mins')
+                    threading.Timer(300, pending_checks).start()  # Schedule the task to run after 5 minutes
+            else:
+                logging.info('Nil Orders. Running after 30 mins')
+                threading.Timer(1800, pending_checks).start()
+        else:
+            logging.info("Exiting pending checks.....")
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=False)
