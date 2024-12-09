@@ -486,11 +486,12 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
 
                 if is_complete(order_id):
                     var_class.level = Level.third
-                    write_obj()
+                    # write_obj()
                     txt = f"{get_var_name(trade_var)} tgt order completed at {get_price(order_id)}."
                     log(txt)
                     logging.info(txt)
                     var_class.tgt_date = datetime.date.today()
+                    write_obj()
 
         elif var_class.level is Level.third:
             # reset var to initial stage when today's date crossed tgt date
@@ -645,7 +646,7 @@ try:
     
     # subscribe for feeds (initially BN & Nifty)
     subscribe() # only assigned instruments will get subscribed for ltp feeds
-    nf.ltp = 23532
+    # nf.ltp = 23532
     ltp_update() # exit if not updated withing 2 minutes
 
     # Dummy Instrument retrieval checking
@@ -685,7 +686,7 @@ def strategy():
             # Sending report on every half an hour
             if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
                     datetime.datetime.now().second == 0:
-                txt = f'Nifty: {nf.ltp} {POSITIVE_CHANGE}'
+                txt = [f'Nifty: {nf.ltp} {POSITIVE_CHANGE}']
                 # log(txt)
                 log(position_report(add_to_report=txt))
                 sleep(2)
@@ -726,9 +727,7 @@ try:
     write_obj()  
     logging.info('Exiting... ')
     sleep(30)
-    # loggings
-    log_trade_book()
-    log_all_logs() 
+
 except Exception as e:
     text = f"Error: {e}"
     log(text)

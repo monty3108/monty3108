@@ -870,14 +870,14 @@ def log_balance() :
     except Exception as e:
         text = f"Error: {e}"
         logging.error(text)
-       
-     
-def position_report(add_to_report:list=None ) :
+
+
+def position_report(add_to_report: list = None):
     """Func to return report of all active positions"""
-    fn= 'position_report' 
+    fn = 'position_report'
     try:
         global alice
-        report = [] 
+        report = []
         r_dict = {}
         pnl = 0
         response_is_list = False
@@ -886,22 +886,24 @@ def position_report(add_to_report:list=None ) :
             response_is_list = True
         else:
             logging.info(response)
-            response = "No open positions."
-            return response
-        
+            response = ["No open positions."]
+            if add_to_report:
+                response.append(add_to_report)
+            return json.dumps(response, indent=4)
+
         for res in response:
-            r_dict={
-                'Sym' : res['Tsym'], 
-                'Qty' : int(res['Netqty']),
-                'Buy': float(res['NetBuyavgprc']), 
-                'Sell' : float(res['NetSellavgprc']), 
-                'Ltp' : float(res['LTP']), 
-                'PnL' : float(res['realisedprofitloss']), 
-                'Mtm' : float(res['unrealisedprofitloss']) 
+            r_dict = {
+                'Sym': res['Tsym'],
+                'Qty': int(res['Netqty']),
+                'Buy': float(res['NetBuyavgprc']),
+                'Sell': float(res['NetSellavgprc']),
+                'Ltp': float(res['LTP']),
+                'PnL': float(res['realisedprofitloss']),
+                'Mtm': float(res['unrealisedprofitloss'])
             }
-            pnl += float(res['realisedprofitloss']) + float( res['unrealisedprofitloss']) 
-            report.append(r_dict) 
-        r_dict = {'Total PnL' : pnl} 
+            pnl += float(res['realisedprofitloss']) + float(res['unrealisedprofitloss'])
+            report.append(r_dict)
+        r_dict = {'Total PnL': pnl}
         report.append(r_dict)
         if add_to_report:
             report += add_to_report
