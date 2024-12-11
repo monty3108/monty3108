@@ -87,5 +87,6 @@ GROUP_CHAT_ID = data[2]
 STRATEGY_NAME = 'Notify'
 
 # Start the thread
+logger.info('Starting notification message worker')
 worker_thread = threading.Thread(target=message_worker)
 worker_thread.start()
