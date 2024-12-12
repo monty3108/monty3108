@@ -1,9 +1,12 @@
+import logging
+
 import requests
 import datetime
 import threading
 import pytz
 import queue
 
+import config
 from My_Logger import setup_logger
 
 logger = setup_logger(logger_name="TeleBot")
@@ -40,35 +43,18 @@ def stop_worker():
 def send_message(text):
     """Sending msg on group MyAlerts"""
     t = get_time().isoformat("seconds")
-
-    # initializing mapping dictionary
-    map_dict = {
-        '.': '\\.',
-        '!': '\\!',
-        '}': '\\}',
-        '{': '\\{',
-        '|': '\\|',
-        '=': '\\=',
-        '-': '\\-',
-        '+': '\\+',
-        '(': '\\(',
-        ')': '\\)',
-        '_': '\\_'
-    }
-    # generator expression to construct vals
-    # join to get string
-    # message = ''.join(idx if idx not in map_dict else map_dict[idx]
-    #                         for idx in text)
-
     final_message = f"{t}: {text}"
     url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
     payload = {
         'chat_id': GROUP_CHAT_ID,
         'text': final_message
     }
-    response = requests.post(url, data=payload)
-    if response.status_code != 200:
-        print(f"Failed to send message: {response.text}")
+    if config.telegram_notification:
+        response = requests.post(url, data=payload)
+        if response.status_code != 200:
+            print(f"Failed to send message: {response.text}")
+    else:
+        print(final_message)
 
 def message_worker():
     while True:
@@ -87,35 +73,18 @@ def notify(text):
 def send_message1(text):
     """Sending msg on group MyAlerts"""
     t = get_time().isoformat("seconds")
-
-    # initializing mapping dictionary
-    map_dict = {
-        '.': '\\.',
-        '!': '\\!',
-        '}': '\\}',
-        '{': '\\{',
-        '|': '\\|',
-        '=': '\\=',
-        '-': '\\-',
-        '+': '\\+',
-        '(': '\\(',
-        ')': '\\)',
-        '_': '\\_'
-    }
-    # generator expression to construct vals
-    # join to get string
-    # message = ''.join(idx if idx not in map_dict else map_dict[idx]
-    #                         for idx in text)
-
     final_message = f"{t}: {text}"
     url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
     payload = {
         'chat_id': CHAT_ID,
         'text': final_message
     }
-    response = requests.post(url, data=payload)
-    if response.status_code != 200:
-        print(f"Failed to send message: {response.text}")
+    if config.telegram_notification:
+        response = requests.post(url, data=payload)
+        if response.status_code != 200:
+            logging.warning(f"Failed to send message: {response.text}")
+    else:
+        print(final_message)
 
 def message_worker1():
     while True:
@@ -146,9 +115,11 @@ RECEIVING_ID = CHAT_ID
 # Start the thread
 logger.info('Starting notification message worker')
 worker_thread = threading.Thread(target=message_worker)
+worker_thread.daemon = True
 worker_thread.start()
 
 worker_thread1 = threading.Thread(target=message_worker1)
+worker_thread1.daemon = True
 worker_thread1.start()
 logger.info('File ended')
 

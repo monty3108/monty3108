@@ -2,6 +2,8 @@ import logging
 import logging.handlers
 from datetime import datetime
 from enum import Enum
+
+import config
 from config import path_app_logs
 
 
@@ -40,9 +42,10 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
 
         # File handler setup
         date_str = datetime.now().strftime("%d-%m-%Y")
-        file_handler = logging.handlers.TimedRotatingFileHandler(
-            f"{path_app_logs}{log_name}_{date_str}.txt", when="midnight", backupCount=7
-        )
+        # file_handler = logging.handlers.TimedRotatingFileHandler(
+        #     config.logger_file_name, when="midnight", backupCount=7
+        # )
+        file_handler = logging.FileHandler(config.logger_file_name)
         file_handler.setFormatter(formatter)
         file_handler.setLevel(log_level.value)
         logger.addHandler(file_handler)

@@ -10,10 +10,6 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import datetime  # For datetime objects
-import os.path  # To manage paths
-import sys  # To find out the script name (in argv[0])
-import pandas as pd
 from Trade_Live import Order, Trade
 from Logger_Module import my_logger, logging
 from pya3 import *
@@ -21,60 +17,40 @@ from Gen_Functions import *
 from Alice_Module import *
 import pickle
 from OrderStatusFeed import start_order_feed_websocket
-
 from enum import Enum
-
 from Order_Manager import *
-
-
 import threading
+import datetime  # For datetime objects
+import os.path  # To manage paths
+import sys  # To find out the script name (in argv[0])
+import pandas as pd
 #import time
 from queue import Queue
 # constants from config files
 import config
-
+# for logging
 from My_Logger import setup_logger, LogLevel
+# for notification on Telegram
 from Notification_Module import notify, stop_worker, notify1
 
-logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=True)
+# create required directories
+create_dir(config.dir_name)
+
+# Setting Up logger for logging
+logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 # for telegram notifications
 def me(msg):
+    """For sending personal notification """
     st = "nf_buy"
     text = f'{msg} ({st})'
     notify1(text)
 
 def group(msg):
+    """For sending group notification """
     st = "nf_buy"
     text = f'{msg} ({st})'
     notify(text)
-
-# Queue to store notifications in order
-# notification_queue = Queue()
-#
-# # Function to process notifications from the queue
-# def notification_worker():
-#     while True:
-#         notification = notification_queue.get()  # Get the next notification from the queue
-#         if notification is None:  # If None is received, stop the worker
-#             break
-#         # Sending the notification
-#         my_logger(notification)
-#         notification_queue.task_done()
-#
-# # Function to generate and send notifications
-# def me(message):
-#     # Put the notification into the queue for the worker to process
-#     if config.notification:
-#         notification_queue.put(message)
-#     if config.print_notification:
-#         print(message)
-#
-# # Start a background thread that continuously processes notifications
-# worker_thread = threading.Thread(target=notification_worker)
-# worker_thread.daemon = True  # Ensures the worker thread exits when the main program exits
-# worker_thread.start()
-
 
 # Level Enum & Variables classes defined
 class Level(Enum):
@@ -106,7 +82,6 @@ class Variables :
             'order_tgt' : None,
             'order_square_off' : None,
             'order_hedge': None
-
         }
 
 
@@ -156,7 +131,7 @@ def get_var_name(var):
                 return name
     except Exception as e:
         text = f"Error: {e}"
-        my_logger(data_to_log=text, bot=True)
+        me(text)
         logging.exception(text)
 
 
@@ -266,6 +241,7 @@ def check_hedge() :
 
     except Exception as e:
         text = f"Error: {e}"
+        me(text)
         logging.exception(text)
 
 
@@ -324,7 +300,7 @@ def calc_levels_price(first_entry, trade_var: Trade):
         text = f"Error: {e}"
         me(text)
         logging.exception(text)
-        return {}
+        return {} # return blank dict
 
 
 # Check condition for change
@@ -474,6 +450,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 )
                 txt = f'{get_var_name(trade_var)} 1st tgt criteria met. Ltp: {ce.ltp}'
                 me(txt)
+                group(txt)
                 logging.info(txt)
 
             # if order already sent, var_class.order_ids['order_tgt'] in not None
@@ -495,7 +472,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                             price=round_nearest(price),
                             trigger_price=round_nearest(trigger_price)
                         )
-                        logging.info(f"Stepping UP trailing tgt. Not tgt price: {var_class.prices['tgt_price']}")
+                        logging.info(f"Stepping UP trailing tgt. Now tgt price: {var_class.prices['tgt_price']}")
                         write_obj()
                     return
 
@@ -515,23 +492,18 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 logging.info(f"{get_var_name(var_class)} tgt date crossed. Resetting this variable for fresh entry.")
                 reset_var(var=var_class)
 
-
-
     except Exception as e:
-        text = f"Error: {e}"
+        text = f"Error: {e}. Exiting..."
         me(text)
         logging.exception(text)
         sys.exit()
 
-logger.info('\n ####################'
-'\n **********New Log*************\n\n') 
-logger.info(f'Time Check: {get_time() }') 
+logger.info(f'Time Check: {get_time() }')
 logger.info("All Modules imported successfully.")
 
 # initialisation process
 try:
-    # create required directories
-    create_dir(config.dir_name)
+
 
     # logging time variables
     time_cons = []
@@ -754,7 +726,7 @@ except Exception as e:
 # Sending required logs to Telegram
 try:
     # docs_to_send = ["app_logs.txt", "data.txt", "logs/trade_log.csv",  "logs/balance.csv"]
-    docs_to_send = ["app_logs.txt", "data.txt"]
+    docs_to_send = [config.logger_file_name]
     bot_token = '5398501864:AAFEn7ljDrKOVkXzhWX4P_khX9Xk-E8FicE'
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
     bot_chat_id = ['5162043562']
@@ -781,12 +753,6 @@ except Exception as e:
     logging.exception(text)
    
   
- 
-
-notification_queue.join()  # Block until all notifications are processed
-print("All notifications sent, exiting.")
-# Stop the worker thread
-notification_queue.put(None)  # Send a signal to stop the worker
-worker_thread.join()  # Wait for the worker thread to finish
+stop_worker()
 
 # read_pkl(file_path=config.path_order_status_feed)

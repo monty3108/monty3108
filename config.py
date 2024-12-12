@@ -9,11 +9,11 @@ import datetime
 # Global alice variable for functioning of Alice operations
 alice = None
 
-# set True for receiving notifications on Telegram
-notification = True
+# set True for receiving notifications on Telegram and False for only print on console
+telegram_notification = True
 
-# set True to print all log notifications
-print_notification = False
+# set True to print all logging along with log in file
+print_logging = False
 
 # variable to maintain status of all orders to be updated by Order_Manager.py and
 # live order status feed websocket OrderStatusFeed.py
@@ -39,6 +39,11 @@ path_session    = "pkl_obj/session.pkl"
 path_variable_container = "pkl_obj/variable_container.pkl"
 path_rejected_order_id = "pkl_obj/rejected_order_id.pkl"
 path_app_logs = "app_logs/"
+
+# logger file name
+date_str = datetime.datetime.now().strftime("%d_%m_%Y")
+logger_file_name = f"{path_app_logs}app_logs_{date_str}.txt"
+print(logger_file_name)
 
 # * under dir logs
 path_balance = "logs/balance.csv"
