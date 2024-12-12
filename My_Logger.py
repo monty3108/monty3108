@@ -2,6 +2,7 @@ import logging
 import logging.handlers
 from datetime import datetime
 from enum import Enum
+from config import path_app_logs
 
 
 class LogLevel(Enum):
@@ -40,7 +41,7 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
         # File handler setup
         date_str = datetime.now().strftime("%d-%m-%Y")
         file_handler = logging.handlers.TimedRotatingFileHandler(
-            f"{log_name}_{date_str}.txt", when="midnight", backupCount=7
+            f"{path_app_logs}{log_name}_{date_str}.txt", when="midnight", backupCount=7
         )
         file_handler.setFormatter(formatter)
         file_handler.setLevel(log_level.value)
@@ -56,13 +57,13 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
     return logger
 
 # # Example Usage:
-# if __name__ == "__main__":
-#     # Initialize logger
-#     logger = setup_logger(log_level=LogLevel.DEBUG)
-#
-#     # Log sample messages
-#     logger.debug("This is a debug message.")
-#     logger.info("This is an info message.")
-#     logger.warning("This is a warning message.")
-#     logger.error("This is an error message.")
-#     logger.critical("This is a critical message.")
+if __name__ == "__main__":
+    # Initialize logger
+    logger = setup_logger(log_level=LogLevel.DEBUG)
+
+    # Log sample messages
+    logger.debug("This is a debug message.")
+    logger.info("This is an info message.")
+    logger.warning("This is a warning message.")
+    logger.error("This is an error message.")
+    logger.critical("This is a critical message.")

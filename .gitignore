@@ -2,6 +2,7 @@
 credentials.txt
 /logs
 /pkl_obj
+/app_logs
 NFO.csv
 *.ipynb
 app_logs.txt
@@ -174,3 +175,4 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /Telegram_data.txt
+/app_logs/

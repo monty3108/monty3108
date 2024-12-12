@@ -27,7 +27,7 @@ FNO_NIFTY_SYMBOL = 'NIFTY' #for fno
 
 
 # making required directories
-dir_name = ['logs', 'pkl_obj'] # logs: placed all log related files, pkl_obj: placed all pkl objs
+dir_name = ['logs', 'pkl_obj', 'app_logs'] # logs: placed all log related files, pkl_obj: placed all pkl objs
 
 
 # File Paths includes json, pkl, and other types
@@ -38,6 +38,7 @@ path_order_status_feed = "pkl_obj/order_status_feed.pkl"
 path_session    = "pkl_obj/session.pkl"
 path_variable_container = "pkl_obj/variable_container.pkl"
 path_rejected_order_id = "pkl_obj/rejected_order_id.pkl"
+path_app_logs = "app_logs/"
 
 # * under dir logs
 path_balance = "logs/balance.csv"

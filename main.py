@@ -33,33 +33,47 @@ from queue import Queue
 # constants from config files
 import config
 
+from My_Logger import setup_logger, LogLevel
+from Notification_Module import notify, stop_worker, notify1
 
+logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=True)
+
+# for telegram notifications
+def me(msg):
+    st = "nf_buy"
+    text = f'{msg} ({st})'
+    notify1(text)
+
+def group(msg):
+    st = "nf_buy"
+    text = f'{msg} ({st})'
+    notify(text)
 
 # Queue to store notifications in order
-notification_queue = Queue()
-
-# Function to process notifications from the queue
-def notification_worker():
-    while True:
-        notification = notification_queue.get()  # Get the next notification from the queue
-        if notification is None:  # If None is received, stop the worker
-            break
-        # Sending the notification
-        my_logger(notification)
-        notification_queue.task_done()
-
-# Function to generate and send notifications
-def log(message):
-    # Put the notification into the queue for the worker to process
-    if config.notification:
-        notification_queue.put(message)
-    if config.print_notification:
-        print(message)
-
-# Start a background thread that continuously processes notifications
-worker_thread = threading.Thread(target=notification_worker)
-worker_thread.daemon = True  # Ensures the worker thread exits when the main program exits
-worker_thread.start()
+# notification_queue = Queue()
+#
+# # Function to process notifications from the queue
+# def notification_worker():
+#     while True:
+#         notification = notification_queue.get()  # Get the next notification from the queue
+#         if notification is None:  # If None is received, stop the worker
+#             break
+#         # Sending the notification
+#         my_logger(notification)
+#         notification_queue.task_done()
+#
+# # Function to generate and send notifications
+# def me(message):
+#     # Put the notification into the queue for the worker to process
+#     if config.notification:
+#         notification_queue.put(message)
+#     if config.print_notification:
+#         print(message)
+#
+# # Start a background thread that continuously processes notifications
+# worker_thread = threading.Thread(target=notification_worker)
+# worker_thread.daemon = True  # Ensures the worker thread exits when the main program exits
+# worker_thread.start()
 
 
 # Level Enum & Variables classes defined
@@ -126,11 +140,11 @@ def reset_var(var: Variables) :
             logging.info('pe inst set to None')
         txt = f'{get_var_name(var)} is reset.'
         write_obj()
-        log(txt)
+        me(txt)
         logging.info(txt)
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
 
 
@@ -158,7 +172,7 @@ def check_expiry():
                 i_date = datetime.datetime.strptime(date_str, date_format)
                 if i_date.date() < weekly_expiry_calculator():
                     text = f'Resetting {get_var_name(i)}. {i.inst} is expired.'
-                    log(text)
+                    me(text)
                     logging.info(text)
                     reset_var(i)
                     write_obj()
@@ -167,7 +181,7 @@ def check_expiry():
                     logging.info(text)
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
 
 
@@ -200,11 +214,11 @@ def obj_report():
                 report[get_var_name(obj)] = None
         msg = json.dumps(report, indent=4)
         text = f'Obj Report: \n {msg}'
-        log(text)
+        me(text)
         logging.info(text)
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
 
 
@@ -279,14 +293,14 @@ def calc_strike(ltp, premium=20, is_ce=True):
                 inst_dict['inst'] = inst
                 inst_dict['ltp'] = c_ltp
                 txt= f'Strike Calculated for premium {premium}: {inst_dict} '
-                log(txt)
+                me(txt)
                 logging.info(txt)
                 logging.info("Breaking for loop")
                 break
         return inst_dict
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
 
 
@@ -308,7 +322,7 @@ def calc_levels_price(first_entry, trade_var: Trade):
         return dict
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
         return {}
 
@@ -324,7 +338,7 @@ def change_in_ltp(current_ltp):
         NEGATIVE_CHANGE = round(previous_close - ltp,2)
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.info(text)
 
 
@@ -364,7 +378,7 @@ def today_expiry_day():
         return we == today_date
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
         return None
 
@@ -387,7 +401,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 if POSITIVE_CHANGE > CHANGE:
                     if var_class.first_order_sent is False:
                         text = f'Index Change: {POSITIVE_CHANGE} taking posn'
-                        log(text)
+                        me(text)
                         logging.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
                         var_class.inst = inst_dict['inst'] # for notification & record
@@ -409,7 +423,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 if NEGATIVE_CHANGE > CHANGE:
                     if var_class.first_order_sent is False:
                         text = f'Index Change: {NEGATIVE_CHANGE} taking posn'
-                        log(text)
+                        me(text)
                         logging.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
                         var_class.inst = inst_dict['inst'] # for notification & record
@@ -441,7 +455,8 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     write_obj()
                     txt = f'{get_var_name(var_class)} order completed at price: {price}'
                     logging.info(txt)
-                    log(txt)
+                    me(txt)
+                    group(txt)
 
         elif var_class.level is Level.second:
             if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
@@ -458,7 +473,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     trigger_price=round_nearest(trigger_price)
                 )
                 txt = f'{get_var_name(trade_var)} 1st tgt criteria met. Ltp: {ce.ltp}'
-                log(txt)
+                me(txt)
                 logging.info(txt)
 
             # if order already sent, var_class.order_ids['order_tgt'] in not None
@@ -488,7 +503,8 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     var_class.level = Level.third
                     # write_obj()
                     txt = f"{get_var_name(trade_var)} tgt order completed at {get_price(order_id)}."
-                    log(txt)
+                    me(txt)
+                    group(txt)
                     logging.info(txt)
                     var_class.tgt_date = datetime.date.today()
                     write_obj()
@@ -503,7 +519,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
 
     except Exception as e:
         text = f"Error: {e}"
-        log(text)
+        me(text)
         logging.exception(text)
         sys.exit()
 
@@ -545,7 +561,7 @@ try:
     LOTS= config.LOTS # Mention lots. Lots qty will be extracted from instrument.
     QTY_ON_ERROR = config.QTY_ON_ERROR
     txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
-    log(txt)
+    me(txt)
     logging.info(txt)
 
     # Generating Session ID
@@ -564,7 +580,7 @@ try:
 
 except Exception as e:
     logging.exception(e)
-    log(f"{e}. Exiting......")
+    me(f"{e}. Exiting......")
     sys.exit()
 
 
@@ -625,7 +641,7 @@ try:
     while get_time() < config.WEBSOCKET_START_TIME:
         sleep(30)
     
-    log("WEBSOCKET_START_TIME(08:30) crossed.")
+    me("WEBSOCKET_START_TIME(08:30) crossed.")
     logging.info("WEBSOCKET_START_TIME(08:30) crossed.")
     
     # code for connect websocket
@@ -633,7 +649,7 @@ try:
 
     # code for connect websocket for order feed updates
     if config.order_Feed_required:
-        log("starting order feed")
+        me("starting order feed")
         start_order_feed_websocket()
     
     #Waiting for session to start
@@ -641,7 +657,7 @@ try:
         sleep(1)
         current_time=datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
     
-    log(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
+    me(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
     logging.info(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
     
     # subscribe for feeds (initially BN & Nifty)
@@ -657,10 +673,10 @@ try:
     change_in_ltp(nf.ltp)
     dummy_msg = f'Dummy Inst at ATM: {dummy_inst}, Ltp: {nf.ltp}, close: {p_close}, Change: {POSITIVE_CHANGE}'
     logging.info(dummy_msg)
-    log(dummy_msg)
+    me(dummy_msg)
 except Exception as e:
     text = f"Error: {e}"
-    log(f"{text}. Exiting....")
+    me(f"{text}. Exiting....")
     logging.exception(text)
     sys.exit()
 
@@ -668,7 +684,7 @@ except Exception as e:
 def strategy():
     fn = "Strategy"
 
-    log('Entering While Loop')
+    me('Entering While Loop')
     while True:
 
         try:
@@ -680,7 +696,7 @@ def strategy():
 
             if tgt_hit_today(ce_var) and tgt_hit_today(pe_var):
                 msg= "both tgts hits. breaking while loop"
-                log(msg)
+                me(msg)
                 logging.info(msg)
                 break
             # Sending report on every half an hour
@@ -688,18 +704,19 @@ def strategy():
                     datetime.datetime.now().second == 0:
                 txt = [f'Nifty: {nf.ltp} {POSITIVE_CHANGE}']
                 # log(txt)
-                log(position_report(add_to_report=txt))
+                me(position_report(add_to_report=txt))
+                group(position_report(add_to_report=txt))
                 sleep(2)
 
             # On Session Over @1530hrs break while loop
             if get_time() >= config.SESSION_END_TIME:
-                log('Session End')
+                me('Session End')
                 logging.info('Session End')
                 break
 
         except Exception as e:
             text = f"Error: {e}"
-            log(text)
+            me(text)
             logging.exception(text)
             sys.exit()
 
@@ -713,7 +730,7 @@ pending_check_thread.start()
 
 while True:
     if get_time() >= config.SESSION_END_TIME:
-        log('Session End')
+        me('Session End')
         logging.info('Session End')
         break
     sleep(60)
@@ -730,7 +747,7 @@ try:
 
 except Exception as e:
     text = f"Error: {e}"
-    log(text)
+    me(text)
     logging.exception(text)
 
 
@@ -748,7 +765,7 @@ try:
         logging.info(f"{item} sent to Bot.")
 except Exception as e:
     text = f"Error: {e}"
-    log(text)
+    me(text)
     logging.exception(text)
 
 # Deleting non required logs before closing
