@@ -112,7 +112,7 @@ def session_id_generate(download_contract=1):
         response = session.get_session_id()
         logger.info(response)
         if response['stat'] == 'Ok':
-            session_pkl = [datetime.date.today(), session]
+            session_pkl = [Gen_Functions.today_date(), session]
             session_id = response['sessionID']
             text = "Session Id generated"
             my_logger(data_to_log=text, fn=fn, bot=True)
