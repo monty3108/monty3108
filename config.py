@@ -13,7 +13,7 @@ alice = None
 telegram_notification = True
 
 # set True to print all logging along with log in file
-print_logging = False
+print_logger = True
 
 # variable to maintain status of all orders to be updated by Order_Manager.py and
 # live order status feed websocket OrderStatusFeed.py

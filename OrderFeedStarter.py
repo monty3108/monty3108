@@ -4,6 +4,7 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+from Alice_Module import *
 import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
@@ -13,21 +14,21 @@ from Logger_Module import my_logger, logging
 # import logging
 from pya3 import *
 from Gen_Functions import *
-from Alice_Module import *
+import OrderStatusFeed as o
+from Order_Manager import *
 import pickle
 
 
 from enum import Enum
 import config
-import OrderStatusFeed as o
-from Order_Manager import *
+
 
 
 import threading
 #import time
 from queue import Queue
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Feed Starter", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Feed Starter", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 # Queue to store notifications in order
 notification_queue = Queue()
 

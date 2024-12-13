@@ -7,7 +7,7 @@ from Alice_Module import *
 # constants from config files
 import config
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Trade Log", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Trade Log", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 create_dir(config.dir_name)
 
@@ -19,7 +19,7 @@ if config.alice is None:
     logger.info("alice object is None. Calling get_session_id()")
     get_session_id()
     # session_id_generate()
-    logging.debug(f'alice obj after calling:{config.alice} ')
+    logger.debug(f'alice obj after calling:{config.alice} ')
 
 # logging balance on csv. Try to maintain only one file
 log_trade_book()
@@ -43,8 +43,8 @@ try:
     for item in docs_to_send:
         document = open(item, "rb")
         response = requests.post(url, data={'chat_id': bot_chat_id}, files={'document': document})
-        # logging.info(response.json())
-        logging.info(f"{item} sent to Bot.")
+        # logger.info(response.json())
+        logger.info(f"{item} sent to Bot.")
 except Exception as e:
     text = f"Error: {e}"
-    logging.exception(text)
+    logger.exception(text)

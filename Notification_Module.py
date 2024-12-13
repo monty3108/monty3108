@@ -1,15 +1,13 @@
-import logging
 
 import requests
 import datetime
 import threading
 import pytz
 import queue
-
 import config
-from My_Logger import setup_logger
+from My_Logger import setup_logger, LogLevel
 
-logger = setup_logger(logger_name="TeleBot")
+logger = setup_logger(logger_name="TeleBot", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 def get_time():
     current_time = datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
@@ -82,7 +80,7 @@ def send_message1(text):
     if config.telegram_notification:
         response = requests.post(url, data=payload)
         if response.status_code != 200:
-            logging.warning(f"Failed to send message: {response.text}")
+            logger.warning(f"Failed to send message: {response.text}")
     else:
         print(final_message)
 

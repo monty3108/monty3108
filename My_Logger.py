@@ -1,10 +1,7 @@
 import logging
 import logging.handlers
-from datetime import datetime
 from enum import Enum
-from Gen_Functions import create_dir
 import config
-from config import path_app_logs
 
 
 class LogLevel(Enum):
@@ -28,7 +25,7 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
         logging.Logger: Configured logger instance.
     """
     # create required directories
-    create_dir(config.dir_name)
+    # Gen_Functions.create_dir(config.dir_name)
     # Create logger instance
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level.value)
@@ -43,7 +40,7 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
         formatter = logging.Formatter(log_format, datefmt="%d-%m-%Y %H:%M:%S")
 
         # File handler setup
-        date_str = datetime.now().strftime("%d-%m-%Y")
+        # date_str = datetime.now().strftime("%d-%m-%Y")
         # file_handler = logging.handlers.TimedRotatingFileHandler(
         #     config.logger_file_name, when="midnight", backupCount=7
         # )

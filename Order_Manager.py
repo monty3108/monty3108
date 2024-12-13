@@ -2,15 +2,14 @@ from enum import Enum
 
 from pya3.alicebluepy import *
 import config
-from Gen_Functions import read_pkl, round_nearest, write_pkl
-from Logger_Module import *
+from Gen_Functions import read_pkl, round_nearest, write_pkl, get_time
+from Logger_Module import my_logger
 import threading
 import time
 
 alice = None
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Order Manager", log_level=LogLevel.INFO, log_to_console=config.print_logging)
-
+logger = setup_logger(logger_name="Order Manager", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 def send_order(transaction_type,
                inst,
@@ -27,7 +26,7 @@ def send_order(transaction_type,
     global alice
     alice= config.alice
     price = round_nearest(price)
-    logging.info(f'Placing Order of Inst: {inst}')
+    logger.info(f'Placing Order of Inst: {inst}')
     response = alice.place_order(transaction_type=transaction_type,
                                  instrument=inst,
                                  quantity=qty,
@@ -46,12 +45,12 @@ def send_order(transaction_type,
         order_id = response['NOrdNo']
         text = f'Order placed successfully. Order id: {order_id} '
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.info(text)
+        logger.info(text)
         return order_id
     else:
         text = f'Order Response: {response}'
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.info(text)
+        logger.info(text)
 
 
 def check_order_status():
@@ -117,7 +116,7 @@ def check_order_status():
 
                 # updating global variable order_status_dict with latest status
                 order_status_dict[response[i]['Nstordno']] = {
-                    'record_date': datetime.date.today(),
+                    'record_date': get_time(),
                     'status': response[i]['Status'],
                     'tsym': response[i]['Trsym'],
                     'price': response[i]['Prc'],
@@ -131,7 +130,7 @@ def check_order_status():
                     rej_order_ids = read_pkl(file_path='pkl_obj/rejected_order_id.pkl')
 
                     if rej_order_ids is None:  # execute if None
-                        logging.info("no order id or file found")
+                        logger.info("no order id or file found")
                     else:
                         print(f'Rejected order ids: {rej_order_ids}')
                         # restricting recurring rejection notifications
@@ -141,7 +140,7 @@ def check_order_status():
                             text = f"{rej_order_id} rejected: {response[i]['RejReason']}"
                             print(text)
                             my_logger(data_to_log=text, fn=fn, bot=True)
-                            logging.warning(text)
+                            logger.warning(text)
                             print(f"rejected_order_id: {rejected_order_id}")
 
             # writing variables to file
@@ -150,17 +149,17 @@ def check_order_status():
             for i in range(len(files)):
                 write_pkl(obj=files[i], file_path=file_path[i])
 
-            logging.info("check_order_status executed.")
+            logger.info("check_order_status executed.")
         else:
             text = f'get order history response: {response}'
             my_logger(data_to_log=text, fn=fn, bot=True)
-            logging.info(text)
+            logger.info(text)
 
 
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def is_pending(order_id):
@@ -176,7 +175,7 @@ def is_pending(order_id):
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def is_complete(order_id):
@@ -188,7 +187,7 @@ def is_complete(order_id):
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def get_price(order_id):
@@ -200,7 +199,7 @@ def get_price(order_id):
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def reset_order_files():
@@ -212,11 +211,11 @@ def reset_order_files():
             x = read_pkl(file_path=file_path[i])
             x.clear()
             write_pkl(obj=x, file_path=file_path[i])
-        logging.info(f"cleared order files: {file_path}")
+        logger.info(f"cleared order files: {file_path}")
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)
 
 def has_pending_orders():
     fn = 'has_pending_orders'
@@ -231,7 +230,7 @@ def has_pending_orders():
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=False)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def pending_checks() :
@@ -243,17 +242,17 @@ def pending_checks() :
             if len(read_pkl(config.path_order_id_response))>0:
 
                 if has_pending_orders():
-                    logging.debug('Pending orders. Running after 1 mins')
+                    logger.debug('Pending orders. Running after 1 mins')
                     threading.Timer(60, pending_checks).start()  # Schedule the task to run after 1 minute
                 else:
-                    logging.debug('No pending orders. Running after 5 mins')
+                    logger.debug('No pending orders. Running after 5 mins')
                     threading.Timer(300, pending_checks).start()  # Schedule the task to run after 5 minutes
             else:
-                logging.info('Nil Orders. Running after 30 mins')
+                logger.info('Nil Orders. Running after 30 mins')
                 threading.Timer(1800, pending_checks).start()
         else:
-            logging.info("Exiting pending checks.....")
+            logger.info("Exiting pending checks.....")
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=False)
-        logging.exception(text)
+        logger.exception(text)

@@ -11,7 +11,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from Trade_Live import Order, Trade
-from Logger_Module import my_logger, logging
 from pya3 import *
 from Gen_Functions import *
 from Alice_Module import *
@@ -25,10 +24,8 @@ import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
 import pandas as pd
 #import time
-from queue import Queue
 # constants from config files
 import config
-# for logging
 
 # for notification on Telegram
 from Notification_Module import notify, stop_worker, notify1
@@ -36,9 +33,9 @@ from Notification_Module import notify, stop_worker, notify1
 # create required directories
 create_dir(config.dir_name)
 
-# Setting Up logger for logging
+# Setting Up logger for logger
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 # for telegram notifications
 def me(msg):
@@ -110,30 +107,30 @@ def reset_var(var: Variables) :
         }
         if ce_var.inst is None:
             ce.instrument = None # resetting Trade variable
-            logging.info('ce inst set to None')
+            logger.info('ce inst set to None')
         if pe_var.inst is None:
             pe.instrument = None # resetting Trade variable
-            logging.info('pe inst set to None')
+            logger.info('pe inst set to None')
         txt = f'{get_var_name(var)} is reset.'
         write_obj()
         me(txt)
-        logging.info(txt)
+        logger.info(txt)
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def get_var_name(var):
     try:
         for name, value in globals().items():
             if value is var:
-                logging.debug(f'Var name: {name}')
+                logger.debug(f'Var name: {name}')
                 return name
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def check_expiry():
@@ -149,16 +146,16 @@ def check_expiry():
                 if i_date.date() < weekly_expiry_calculator():
                     text = f'Resetting {get_var_name(i)}. {i.inst} is expired.'
                     me(text)
-                    logging.info(text)
+                    logger.info(text)
                     reset_var(i)
                     write_obj()
                 else:
                     text = f'{i.inst} is not expired.'
-                    logging.info(text)
+                    logger.info(text)
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def obj_report():
@@ -191,11 +188,11 @@ def obj_report():
         msg = json.dumps(report, indent=4)
         text = f'Obj Report: \n {msg}'
         me(text)
-        logging.info(text)
+        logger.info(text)
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def check_hedge() :
@@ -206,10 +203,10 @@ def check_hedge() :
         # print(json.dumps(positions, indent=4))
         log_is_list = False
         if isinstance(positions, list):
-            logging.info(f'positions log is a list. Continue process.')
+            logger.info(f'positions log is a list. Continue process.')
             log_is_list = True
         else:
-            logging.warning(f"Positions log is not a list, response: {positions}" )
+            logger.warning(f"Positions log is not a list, response: {positions}" )
 
         if log_is_list:
             position_log_list = []
@@ -226,24 +223,24 @@ def check_hedge() :
                 "Qty": qty
                 }
                 position_log_list.append(position_log)
-            logging.info(f'all position: {position_log_list}')
+            logger.info(f'all position: {position_log_list}')
             #print(json.dumps(trade_log_list, indent=4))
             for posn in position_log_list:
                 if posn['Qty'] > 0:
                     if posn['AvgPrice'] > 0 and posn['AvgPrice']<5:
                         if posn['Option_type'] == 'CE':
-                            logging.info('CE buy hedge is True')
+                            logger.info('CE buy hedge is True')
                             ce_var.buy_hedge = True
                             write_obj()
                         else:
-                            logging.info('PE buy hedge is True')
+                            logger.info('PE buy hedge is True')
                             pe_var.buy_hedge = True
                             write_obj()
 
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def calc_strike(ltp, premium=20, is_ce=True):
@@ -271,14 +268,14 @@ def calc_strike(ltp, premium=20, is_ce=True):
                 inst_dict['ltp'] = c_ltp
                 txt= f'Strike Calculated for premium {premium}: {inst_dict} '
                 me(txt)
-                logging.info(txt)
-                logging.info("Breaking for loop")
+                logger.info(txt)
+                logger.info("Breaking for loop")
                 break
         return inst_dict
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
 
 
 def calc_levels_price(first_entry, trade_var: Trade):
@@ -295,12 +292,12 @@ def calc_levels_price(first_entry, trade_var: Trade):
         'tgt_price' : round_nearest(y),
         'max_loss' : round_nearest(z)
         }
-        logging.info(f'Calculated level prices: {dict}')
+        logger.info(f'Calculated level prices: {dict}')
         return dict
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
         return {} # return blank dict
 
 
@@ -316,7 +313,7 @@ def change_in_ltp(current_ltp):
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.info(text)
+        logger.info(text)
 
 
 def read_obj() :
@@ -332,7 +329,7 @@ def read_obj() :
             pe.instrument = pe_var.inst
             pe.assigned(lots=config.LOTS)
     else:
-        logging.info(f'{path} does not exist. Writing new files.')
+        logger.info(f'{path} does not exist. Writing new files.')
         write_obj()
     obj_report()
 
@@ -356,7 +353,7 @@ def today_expiry_day():
     except Exception as e:
         text = f"Error: {e}"
         me(text)
-        logging.exception(text)
+        logger.exception(text)
         return None
 
 
@@ -379,7 +376,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     if var_class.first_order_sent is False:
                         text = f'Index Change: {POSITIVE_CHANGE} taking posn'
                         me(text)
-                        logging.info(text)
+                        logger.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
                         var_class.inst = inst_dict['inst'] # for notification & record
                         trade_var.instrument = inst_dict['inst']
@@ -401,7 +398,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     if var_class.first_order_sent is False:
                         text = f'Index Change: {NEGATIVE_CHANGE} taking posn'
                         me(text)
-                        logging.info(text)
+                        logger.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
                         var_class.inst = inst_dict['inst'] # for notification & record
                         trade_var.instrument = inst_dict['inst']
@@ -431,7 +428,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     var_class.qty = trade_var.qty
                     write_obj()
                     txt = f'{get_var_name(var_class)} order completed at price: {price}'
-                    logging.info(txt)
+                    logger.info(txt)
                     me(txt)
                     group(txt)
 
@@ -452,7 +449,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                 txt = f'{get_var_name(trade_var)} 1st tgt criteria met. Ltp: {ce.ltp}'
                 me(txt)
                 group(txt)
-                logging.info(txt)
+                logger.info(txt)
 
             # if order already sent, var_class.order_ids['order_tgt'] in not None
             elif var_class.order_ids['order_tgt'] is not None:
@@ -473,7 +470,7 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                             price=round_nearest(price),
                             trigger_price=round_nearest(trigger_price)
                         )
-                        logging.info(f"Stepping UP trailing tgt. Now tgt price: {var_class.prices['tgt_price']}")
+                        logger.info(f"Stepping UP trailing tgt. Now tgt price: {var_class.prices['tgt_price']}")
                         write_obj()
                     return
 
@@ -483,20 +480,20 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     txt = f"{get_var_name(trade_var)} tgt order completed at {get_price(order_id)}."
                     me(txt)
                     group(txt)
-                    logging.info(txt)
+                    logger.info(txt)
                     var_class.tgt_date = datetime.date.today()
                     write_obj()
 
         elif var_class.level is Level.third:
             # reset var to initial stage when today's date crossed tgt date
             if var_class.tgt_date < today_date():
-                logging.info(f"{get_var_name(var_class)} tgt date crossed. Resetting this variable for fresh entry.")
+                logger.info(f"{get_var_name(var_class)} tgt date crossed. Resetting this variable for fresh entry.")
                 reset_var(var=var_class)
 
     except Exception as e:
         text = f"Error: {e}. Exiting..."
         me(text)
-        logging.exception(text)
+        logger.exception(text)
         sys.exit()
 
 logger.info(f'Time Check: {get_time() }')
@@ -506,17 +503,17 @@ logger.info("All Modules imported successfully.")
 try:
 
 
-    # logging time variables
+    # logger time variables
     time_cons = []
     time_cons.append(f"Websocket Start Time: {config.WEBSOCKET_START_TIME}")
     time_cons.append(f"Session Start Time: {config.SESSION_START_TIME}")
     time_cons.append(f"Session End Time; {config.SESSION_END_TIME}")
     for i in time_cons:
-        logging.info(i)
+        logger.info(i)
 except Exception as e:
-    logging.exception(e)
+    logger.exception(e)
 
-
+sys.exit('exit')
 # setting up program variables
 try:
     # Exit if today is holiday
@@ -535,24 +532,24 @@ try:
     QTY_ON_ERROR = config.QTY_ON_ERROR
     txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
     me(txt)
-    logging.info(txt)
+    logger.info(txt)
 
     # Generating Session ID
     if config.alice is None:
         logger.info("alice object is None. Calling get_session_id()")
         get_session_id()
         # session_id_generate()
-        logging.debug(f'alice obj after calling:{config.alice} ')
+        logger.debug(f'alice obj after calling:{config.alice} ')
 
     # Setting alice value from config file alice obj
     alice = config.alice
 
-    # logging balance on csv. Try to maintain only one file
+    # logger balance on csv. Try to maintain only one file
     if config.log_balance_required:
         log_balance() # will be maintained in TradeNifty
 
 except Exception as e:
-    logging.exception(e)
+    logger.exception(e)
     me(f"{e}. Exiting......")
     sys.exit()
 
@@ -561,39 +558,39 @@ except Exception as e:
 try:
     # Nifty Index Instrument
     NIFTY_INST = config.alice.get_instrument_by_symbol(exchange='INDICES', symbol=config.INDEX_NIFTY_SYMBOL)
-    logging.info(f'Nifty_Inst retrieved: {NIFTY_INST}')
+    logger.info(f'Nifty_Inst retrieved: {NIFTY_INST}')
     
     # nf for Nifty Index declared for Trade Class
     nf = Trade(alice=config.alice, paper_trade=True)
-    logging.debug('nf declared for Trade class')
+    logger.debug('nf declared for Trade class')
     
     nf.instrument = NIFTY_INST
     nf.assigned(lots=LOTS, qty_on_error=QTY_ON_ERROR)
     
     txt= f'nf class defined. Inst: {nf.instrument}'
-    logging.info(txt)
+    logger.info(txt)
     
     """### Previous Closing"""
     # four days back
     from_date = datetime.datetime.now().replace(hour=9, minute=14, second=0) - datetime.timedelta(days=4)
-    logging.debug(f'from date: {from_date}')
+    logger.debug(f'from date: {from_date}')
     # yesterday
     to_date = datetime.datetime.now().replace(hour=15, minute=30, second=0) - datetime.timedelta(days=1)
-    logging.debug(f'to date: {to_date}')
+    logger.debug(f'to date: {to_date}')
 
     # df = pd.DataFrame()
     df=nf.historical_data(no_of_days=None, interval="D", indices=True, from_datetime = from_date,to_datetime=to_date)
     # interval : ["1", "D"] // indices: True or False
-    logging.debug(f'historical data: {df}')
+    logger.debug(f'historical data: {df}')
     
     l=len(df['close']) - 1 # getting index of last element
     p_close = df.loc[l]['close']
     
     txt = f'Nifty Previous Close: {p_close} '
-    logging.info(txt)
+    logger.info(txt)
     
     # Initialising ce & pe
-    logging.info("Initialising ce & pe")
+    logger.info("Initialising ce & pe")
     ce = Trade(alice=alice, paper_trade=False)
     
     ce_buy = Trade(alice=alice, paper_trade=False)
@@ -615,7 +612,7 @@ try:
         sleep(30)
     
     me("WEBSOCKET_START_TIME(08:30) crossed.")
-    logging.info("WEBSOCKET_START_TIME(08:30) crossed.")
+    logger.info("WEBSOCKET_START_TIME(08:30) crossed.")
     
     # code for connect websocket
     alice_websocket()
@@ -631,7 +628,7 @@ try:
         current_time=datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
     
     me(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
-    logging.info(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
+    logger.info(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
     
     # subscribe for feeds (initially BN & Nifty)
     subscribe() # only assigned instruments will get subscribed for ltp feeds
@@ -645,12 +642,12 @@ try:
                                            is_ce=True)
     change_in_ltp(nf.ltp)
     dummy_msg = f'Dummy Inst at ATM: {dummy_inst}, Ltp: {nf.ltp}, close: {p_close}, Change: {POSITIVE_CHANGE}'
-    logging.info(dummy_msg)
+    logger.info(dummy_msg)
     me(dummy_msg)
 except Exception as e:
     text = f"Error: {e}"
     me(f"{text}. Exiting....")
-    logging.exception(text)
+    logger.exception(text)
     sys.exit()
 
 
@@ -670,7 +667,7 @@ def strategy():
             if tgt_hit_today(ce_var) and tgt_hit_today(pe_var):
                 msg= "both tgts hits. breaking while loop"
                 me(msg)
-                logging.info(msg)
+                logger.info(msg)
                 break
             # Sending report on every half an hour
             if (datetime.datetime.now().minute == 0 or datetime.datetime.now().minute == 30) and \
@@ -684,13 +681,13 @@ def strategy():
             # On Session Over @1530hrs break while loop
             if get_time() >= config.SESSION_END_TIME:
                 me('Session End')
-                logging.info('Session End')
+                logger.info('Session End')
                 break
 
         except Exception as e:
             text = f"Error: {e}"
             me(text)
-            logging.exception(text)
+            logger.exception(text)
             sys.exit()
 
 strategy_thread = threading.Thread(target=strategy)
@@ -704,7 +701,7 @@ pending_check_thread.start()
 while True:
     if get_time() >= config.SESSION_END_TIME:
         me('Session End')
-        logging.info('Session End')
+        logger.info('Session End')
         break
     sleep(60)
 
@@ -715,13 +712,13 @@ try:
     
     """###Write Obj to the file obj.pkl"""
     write_obj()  
-    logging.info('Exiting... ')
+    logger.info('Exiting... ')
     sleep(30)
 
 except Exception as e:
     text = f"Error: {e}"
     me(text)
-    logging.exception(text)
+    logger.exception(text)
 
 
 # Sending required logs to Telegram
@@ -734,24 +731,24 @@ try:
     for item in docs_to_send:
         document = open(item, "rb")
         response = requests.post(url, data={'chat_id': bot_chat_id}, files={'document': document})
-        # logging.info(response.json())
-        logging.info(f"{item} sent to Bot.")
+        # logger.info(response.json())
+        logger.info(f"{item} sent to Bot.")
 except Exception as e:
     text = f"Error: {e}"
     me(text)
-    logging.exception(text)
+    logger.exception(text)
 
 # Deleting non required logs before closing
 try:
     sleep(10)
-    logging.info("Deleting non req files before closing.")
+    logger.info("Deleting non req files before closing.")
     docs_to_delete = ["data.txt"]
     for item in docs_to_delete:
         os.remove(item)
-        logging.info(f"{item}: deleted")
+        logger.info(f"{item}: deleted")
 except Exception as e:
     text = f"Error: {e}"
-    logging.exception(text)
+    logger.exception(text)
    
   
 stop_worker()

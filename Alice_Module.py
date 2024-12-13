@@ -1,21 +1,19 @@
 # Module for AliceBlue API Functions
 # Ver 1
 import sys
-
 from pya3 import *
 import os
-import datetime
 import json
 import Gen_Functions
 from time import sleep
-import logging
-from Logger_Module import *
+from Logger_Module import my_logger
 import Trade_Live
 import numpy as np
 import config
+
 # Setting Up logger for logging
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Alice Module", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Alice Module", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 trade_class_list = []
 subscribe_list = None
@@ -77,7 +75,7 @@ def credentials():
             credentials_data = f.readlines()
         for d in range(6):
             credentials_data[d] = credentials_data[d].strip()
-        logging.info("credentials imported from text file successfully.")
+        logger.info("credentials imported from text file successfully.")
         return credentials_data
     except Exception as e:
         text = f"Error: {e}."
@@ -90,15 +88,15 @@ def get_session_id():
     try:
         # session[0]: date, session[1]: session_id
         session = Gen_Functions.read_pkl(file_path='pkl_obj/session.pkl')
-        if session[0] == datetime.date.today():
+        if session[0] == Gen_Functions.today_date():
             config.alice = session[1]
             alice = config.alice
-            txt = f'Session id retrieved from session.pkl for date: {datetime.date.today()}'
-            logging.info(txt)
+            txt = f'Session id retrieved from session.pkl for date: {Gen_Functions.today_date()}'
+            logger.info(txt)
         else:
             session_id_generate()
     except Exception as e:
-        logging.exception(e)
+        logger.exception(e)
         my_logger(data_to_log=e, fn=fn, bot=True)
         session_id_generate()
         
@@ -109,26 +107,26 @@ def session_id_generate(download_contract=1):
     data = credentials()
     global alice
     try:
-        logging.debug(f'Before calling session generation alice: {alice} ')
+        logger.debug(f'Before calling session generation alice: {alice} ')
         session = Aliceblue(user_id=data[0], api_key=data[5])
         response = session.get_session_id()
-        logging.info(response)
+        logger.info(response)
         if response['stat'] == 'Ok':
             session_pkl = [datetime.date.today(), session]
             session_id = response['sessionID']
             text = "Session Id generated"
             my_logger(data_to_log=text, fn=fn, bot=True)
-            logging.info(text)
-            logging.info(f'alice obj: {session}')
+            logger.info(text)
+            logger.info(f'alice obj: {session}')
             Gen_Functions.create_dir(['pkl_obj'])
             Gen_Functions.write_pkl(obj=session_pkl, file_path='pkl_obj/session.pkl')    
             config.alice = session
             alice = config.alice
             if download_contract == 1:
-                logging.info('Downloading master contract......')
+                logger.info('Downloading master contract......')
                 # my_logger(data_to_log='Downloading master contract......', fn=fn, bot=False)
                 get_master_contract()
-                logging.info('Master contract Downloaded.')
+                logger.info('Master contract Downloaded.')
                 my_logger(data_to_log='Master contract Downloaded.', fn=fn, bot=False)
             
         else:
@@ -259,7 +257,7 @@ def ltp_update():
     global trade_class_list
     i = 1
     scrips=[]
-    logging.info('ltp_update started')
+    logger.info('ltp_update started')
     my_logger(data_to_log="ltp_update started", fn=fn, bot=True)
     for trade_class in trade_class_list:
         if trade_class.instrument is not None:
@@ -269,16 +267,16 @@ def ltp_update():
         while item.ltp is None:
             i += 1
             if i > 60:
-                logging.info('1 min passed. Breaking') 
+                logger.info('1 min passed. Breaking') 
                 print('breaking ltp update loop') 
                 break
             sleep(1)
             pass
         text = f"{item.symbol} LTP: {item.ltp}"
-        logging.info(text)
+        logger.info(text)
         my_logger(data_to_log=text, fn=fn, bot=False)
     my_logger(data_to_log="ltp_update exited", fn=fn, bot=True)
-    logging.info('ltp_update exited') 
+    logger.info('ltp_update exited') 
     # my_logger(data_to_log="Scrips subscribed successfully", fn=fn, bot=True)
 
 
@@ -394,11 +392,11 @@ def unsubscribe():
         text = f"Feed unsubscribed for: {unsubscribe_list_inst}"
         # logger.info(text)
         my_logger(data_to_log=text, fn=fn, bot=False)
-        logging.info(text)
+        logger.info(text)
     except Exception as e:
         text = f"Error: {e}"
         my_logger(data_to_log=text, fn=fn, bot=True)
-        logging.error(text)
+        logger.error(text)
 
 
 def update_order_details():
@@ -749,15 +747,15 @@ def log_trade_book() :
     try: 
         global alice
         all_trade_logs = alice.get_trade_book()
-        logging.debug(all_trade_logs)
+        logger.debug(all_trade_logs)
         print('Trade Logs Response:') 
         print(json.dumps(all_trade_logs, indent=4)) 
         log_is_list = False
         if isinstance(all_trade_logs, list):
-            logging.info('Trade log is a list. Continue process.')
+            logger.info('Trade log is a list. Continue process.')
             log_is_list = True
         else:
-            logging.warning(f"Trade log is not a list: {all_trade_logs}" )
+            logger.warning(f"Trade log is not a list: {all_trade_logs}" )
         
         if log_is_list:
             trade_log_list = []
@@ -781,7 +779,7 @@ def log_trade_book() :
                 }
                 trade_log_list.append(trade_log)
             
-            logging.debug('all trade logs appended to trade_log') 
+            logger.debug('all trade logs appended to trade_log') 
             # Converting trade logs to df
             df = pd.DataFrame(trade_log_list)
             # Converting str time to datetime
@@ -789,18 +787,18 @@ def log_trade_book() :
             file_path = config.path_trade_log # path for csv file
             file_writer(df, file_path) # For writing a new file else append
             
-            logging.info('Adding Cum Sum in trade_log.csv')
+            logger.info('Adding Cum Sum in trade_log.csv')
             df1 = pd.read_csv(file_path)
             df1['Exchtime'] = pd.to_datetime(df1['Exchtime'], format='%Y-%m-%d %H:%M:%S' )
             df1 = df1.sort_values(by='Exchtime') # Sorting rows
-            logging.debug("Values sorted by exchtime") 
+            logger.debug("Values sorted by exchtime") 
             df1['Profit'] = round(df1['Amount'].cumsum(),2)
             df1.to_csv(file_path, index=False)  # rewriting existing file
-            logging.info('trade_log updated & exiting') 
+            logger.info('trade_log updated & exiting') 
             
     except Exception as e:
         text = f"Error: {e}"
-        logging.error(text)
+        logger.error(text)
       
     
 def log_all_logs() :
@@ -829,7 +827,7 @@ def log_all_logs() :
     
         with open(write_name, "w") as f:
             json.dump(write_var, f, indent=4)
-            logging.info(f'{write_name} written') 
+            logger.info(f'{write_name} written') 
         
         i += 1
        
@@ -840,20 +838,20 @@ def log_balance() :
         global alice
         path = config.path_balance
         logs = alice.get_balance()
-        logging.debug(f'get_balance response: {logs} ')
+        logger.debug(f'get_balance response: {logs} ')
         #print(json.dumps(logs, indent=4)) 
         log_is_list = False
         if isinstance(logs, list):
-            logging.info(f'log is a list. Continue process.')
+            logger.info(f'log is a list. Continue process.')
             log_is_list = True
         else:
-            logging.warning(f"log is not a list: {logs}" )
+            logger.warning(f"log is not a list: {logs}" )
         
         if log_is_list:
             log_list = []
             
             for log in logs:
-                today_date = datetime.date.today()
+                today_date = Gen_Functions.today_date()
                 print(today_date)
                 cashmargin = float(log['cashmarginavailable'])
                 marginused =  log['cncMarginUsed']
@@ -864,15 +862,15 @@ def log_balance() :
                 "Margin_Used": marginused
                 }
                 log_list.append(final_log)
-            logging.debug('all logs appended to log_list ') 
+            logger.debug('all logs appended to log_list ') 
             #print(json.dumps(trade_log_list, indent=4))
             df = pd.DataFrame(log_list)
             file_path = path
             file_writer(df, file_path)
-            logging.info(f'file: {path} written')
+            logger.info(f'file: {path} written')
     except Exception as e:
         text = f"Error: {e}"
-        logging.error(text)
+        logger.exception(text)
 
 
 def position_report(add_to_report: list = None):
@@ -888,7 +886,7 @@ def position_report(add_to_report: list = None):
         if isinstance(response, list):
             response_is_list = True
         else:
-            logging.info(response)
+            logger.info(response)
             response = ["No open positions."]
             if add_to_report:
                 response.append(add_to_report)
@@ -914,4 +912,4 @@ def position_report(add_to_report: list = None):
     except Exception as e:
         text = f"{e}"
         my_logger(text, fn=fn, bot=True)
-        logging.exception(text)
+        logger.exception(text)

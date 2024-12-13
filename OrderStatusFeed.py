@@ -14,7 +14,7 @@ import datetime
 from Order_Manager import check_order_status
 from queue import Queue
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Order Feed", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Order Feed", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 # Queue to store notifications in order
 notification_queue = Queue()

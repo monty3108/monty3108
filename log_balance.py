@@ -3,13 +3,10 @@ from __future__ import (absolute_import, division, print_function,
 from pya3 import *
 from Gen_Functions import is_holiday_today, create_dir
 from Alice_Module import *
-
-from Order_Manager import *
-
 # constants from config files
 import config
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="log Bal", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="log Bal", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 
 create_dir(config.dir_name)
@@ -22,7 +19,7 @@ if config.alice is None:
     logger.info("alice object is None. Calling get_session_id()")
     get_session_id()
     # session_id_generate()
-    logging.debug(f'alice obj after calling:{config.alice} ')
+    logger.debug(f'alice obj after calling:{config.alice} ')
 
-# logging balance on csv. Try to maintain only one file
+# log balance on csv. Try to maintain only one file
 log_balance() # will be maintained in nf_buy

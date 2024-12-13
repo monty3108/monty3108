@@ -3,14 +3,14 @@
 
 import datetime
 import pandas as pd
-# import pytz
 import pickle
 import os
-from Logger_Module import *
+from Logger_Module import my_logger
 import sys
 import config
+import pytz
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Gen Func", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Gen Func", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 def next_5_min(current_min):
     """Func to calc next minute in multiple of 5"""
@@ -31,7 +31,7 @@ def next_5_min(current_min):
     except Exception as e:
         text = f"Error: {e}"
         #log(text=text, fn=fn, bot=True)
-        logging.error(text)
+        logger.error(text)
 
 
 # Function to calculate remaining seconds for next 5 mins time
@@ -163,11 +163,11 @@ def read_pkl(file_path):
             obj = pickle.load(file)
 
         txt = f'{file_path} reading successfully'
-        logging.debug(txt)
+        logger.debug(txt)
         return obj
     except Exception as e:
         text = f"Error: {e}"
-        logging.exception(text)
+        logger.exception(text)
 
 
 def write_pkl(obj, file_path):
@@ -175,20 +175,20 @@ def write_pkl(obj, file_path):
     try:
         with open(file_path, 'wb') as file:
             pickle.dump(obj, file)
-        logging.debug(f'{file_path} written successfully.')
+        logger.debug(f'{file_path} written successfully.')
     except Exception as e:
         text = f"Error: {e}"
-        logging.exception(text)
+        logger.exception(text)
 
 
 def create_dir(dir_name: list):
     """ create dir
     args:
     dir_name is to be passed as a list of directory """
-    for dir in dir_name:
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-            logging.info(f'{dir} created successfully')
+    for directory in dir_name:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            logger.info(f'{directory} created successfully')
 
 
 def today_date():
@@ -202,10 +202,10 @@ def is_holiday_today():
     if is_holiday(today_date):
         msg = 'Today is holiday. Exiting the Algo.'
         my_logger(data_to_log=msg, fn=fn, bot=True)
-        logging.info(msg)
+        logger.info(msg)
         sys.exit()
     else:
-        logging.info('Today is not holiday.')
+        logger.info('Today is not holiday.')
         
         
 def file_exist(file_path):
@@ -226,19 +226,21 @@ def day_of_week():
     # Mon, Tue
     day_of_week = today_date.strftime("%a")
     
-    # logging.info(f"Today's day is: {day_of_week}" )
+    # logger.info(f"Today's day is: {day_of_week}" )
     return day_of_week
   
  
 def quit_on_days(days_list: list) :
    fn="quit_on_days" 
    """quit on given days"""
-   logging.info(f"List of Days to quit program: {days_list}.") 
+   logger.info(f"List of Days to quit program: {days_list}.")
    if day_of_week() in days_list:
-       msg = f'progm is designed to quit on {day_of_week()}. Exiting......... '
+       msg = f'Program is designed to quit on {day_of_week()}. Exiting......... '
        print(msg) 
        my_logger(data_to_log=msg, fn=fn, bot=True) 
-       logging.info(msg)
+       logger.info(msg)
        sys.exit(1)
 
-
+def get_time():
+    current_time = datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
+    return current_time

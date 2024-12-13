@@ -44,6 +44,8 @@ def my_telegram_bot(bot_message):
         send_text = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + receiver + \
                     '&parse_mode=MarkdownV2&text=' + final_message
         response = requests.get(send_text)
+        if response.status_code != 200:
+            print(f"Failed to send message: {response.text}")
         # print(response.json())
     return
 

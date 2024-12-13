@@ -1,30 +1,10 @@
-# %%
-# imports
 
-import logging
-# # logging.basicConfig(level=logging.DEBUG)
-# from datetime import datetime, timedelta, date
-# # from pyotp import TOTP
-# from pya3 import *
-# import pandas as pd
-# import requests
-# import telebot
-# from functools import wraps
-# import json
-#
-# from requests.exceptions import ConnectionError
-# from http.client import RemoteDisconnected  # Corrected import
-#
-# import time
-# import math
-# import sys
-# import os
 import pyotp
 from Alice_Module import credentials
 from Logger_Module import *
 import config
 from My_Logger import setup_logger, LogLevel
-logger = setup_logger(logger_name="Alice Module", log_level=LogLevel.INFO, log_to_console=config.print_logging)
+logger = setup_logger(logger_name="Auto Login", log_level=LogLevel.INFO, log_to_console=config.print_logger)
 
 
 # from alice_blue import *
@@ -125,7 +105,7 @@ time.sleep(5)  # Adjust based on the loading time of the dashboard
 # Optional: Print current URL to confirm successful login
 msg=f"Logged in! Current URL: {driver.current_url}"
 my_logger(data_to_log=msg, fn='AutoLogin', bot=True)
-logging.info(msg)
+logger.info(msg)
 
 # Cleanup: Close the browser
 driver.quit()
