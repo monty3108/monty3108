@@ -9,7 +9,7 @@ import threading
 import time
 import config
 from Gen_Functions import create_dir, file_exist, read_pkl, write_pkl
-from Logger_Module import my_logger, logging
+from Logger_Module import my_logger
 import datetime
 from Order_Manager import check_order_status
 from queue import Queue
@@ -44,17 +44,17 @@ worker_thread.start()
 
 
 def generate_token():
-    logging.info('generating order feed token') 
+    logger.info('generating order feed token') 
     alice = config.alice
     if alice is None:
-        logging.critical('alice var is None')
+        logger.critical('alice var is None')
     """Generates an access token using API key and secret."""
     base_url ="https://ant.aliceblueonline.com/order-notify/" 
     token_url="ws/createWsToken"
     ws_url = "websocket" 
     Url = base_url + token_url
     res = alice._request(Url, "GET" )
-    logging.info(f'generate token response: {res} ') 
+    logger.info(f'generate token response: {res} ') 
     if res['status'] == 'Ok' :
         token_data = res
         access_token = token_data['result'][0]['orderToken']
@@ -66,7 +66,7 @@ def generate_token():
         datas = json.dumps(payload) 
         return datas
     else:
-        logging.error(f"Error in token generation: {res.json()}")
+        logger.error(f"Error in token generation: {res.json()}")
         return None
 
 
@@ -77,7 +77,7 @@ def on_message(ws1, message):
     print('new message recd(order status feed):')
     print(new_msg)
     log(new_msg) 
-    logging.info(new_msg) 
+    logger.info(new_msg) 
     if 't' in data:
         manage_order_status(data) 
 
@@ -87,13 +87,13 @@ def on_error(ws1, error):
 
 def on_close(ws1, close_status_code, close_msg):
     """Handles WebSocket closing."""
-    logging.info("Order WebSocket closed")
+    logger.info("Order WebSocket closed")
     log("order feed closed") 
     start_order_feed_websocket()
 
 def on_open(ws1):
     """Handles WebSocket connection opening."""
-    logging.info("WebSocket connection established")
+    logger.info("WebSocket connection established")
 
     # update config.order_status_dict by using check_order_status in case orders are already sent
     check_order_status()
@@ -108,7 +108,7 @@ def on_open(ws1):
               "userId":"AB154186"
             }
             res = ws1.send(json.dumps(h))
-            logging.debug(f"Heartbeat sent. Res: {res}")
+            logger.debug(f"Heartbeat sent. Res: {res}")
             print(f"Heartbeat sent. Res: {res}")
             time.sleep(50)
     #starting heartbeat thread
@@ -117,7 +117,7 @@ def on_open(ws1):
 def start_order_feed_websocket():
     """Establishes WebSocket connection."""
     
-    logging.info("Establishes WebSocket connection.... ")
+    logger.info("Establishes WebSocket connection.... ")
     thread = None
     create_dir = ['pkl_obj']
     WEB_SOCKET_URL =  "wss://ant.aliceblueonline.com/order-notify/websocket"
@@ -151,14 +151,14 @@ def manage_order_status(order_msg):
         'price': order_msg['prc'],
         'rejreason': ''
     }
-    logging.info(f'order_status_dict updated for order id : {order_id}')
+    logger.info(f'order_status_dict updated for order id : {order_id}')
     # if order is rejected, update rejection reason
     if order_status_dict[order_id] ['status']=='REJECTED' :
         order_status_dict[order_id] ['rejreason']=order_msg['rejreason']
-        logging.info(f'rejection reason updated for order id: {order_id}')
+        logger.info(f'rejection reason updated for order id: {order_id}')
     # for logging
     msg= {order_id: order_status_dict[order_msg['norenordno']]}
-    logging.info(msg)
+    logger.info(msg)
 
     print(f"order_status_dict: {order_status_dict}")
 

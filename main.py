@@ -513,7 +513,6 @@ try:
 except Exception as e:
     logger.exception(e)
 
-sys.exit('exit')
 # setting up program variables
 try:
     # Exit if today is holiday
