@@ -8,7 +8,9 @@ import pickle
 import os
 from Logger_Module import *
 import sys
-
+import config
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Gen Func", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 def next_5_min(current_min):
     """Func to calc next minute in multiple of 5"""

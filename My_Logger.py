@@ -2,7 +2,7 @@ import logging
 import logging.handlers
 from datetime import datetime
 from enum import Enum
-
+from Gen_Functions import create_dir
 import config
 from config import path_app_logs
 
@@ -27,6 +27,8 @@ def setup_logger(logger_name='my_logger', log_name="app_logs", log_level=LogLeve
     Returns:
         logging.Logger: Configured logger instance.
     """
+    # create required directories
+    create_dir(config.dir_name)
     # Create logger instance
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level.value)

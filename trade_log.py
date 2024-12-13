@@ -6,7 +6,8 @@ from Alice_Module import *
 
 # constants from config files
 import config
-
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Trade Log", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 create_dir(config.dir_name)
 

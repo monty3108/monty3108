@@ -29,7 +29,7 @@ from queue import Queue
 # constants from config files
 import config
 # for logging
-from My_Logger import setup_logger, LogLevel
+
 # for notification on Telegram
 from Notification_Module import notify, stop_worker, notify1
 
@@ -37,6 +37,7 @@ from Notification_Module import notify, stop_worker, notify1
 create_dir(config.dir_name)
 
 # Setting Up logger for logging
+from My_Logger import setup_logger, LogLevel
 logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 # for telegram notifications

@@ -19,7 +19,9 @@ from Logger_Module import *
 import Alice_Module
 import Gen_Functions
 import os
-
+import config
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Trade Live", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 # In[3]:
 

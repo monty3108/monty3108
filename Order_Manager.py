@@ -8,6 +8,8 @@ import threading
 import time
 
 alice = None
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Order Manager", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 
 def send_order(transaction_type,

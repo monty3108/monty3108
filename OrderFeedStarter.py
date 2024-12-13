@@ -26,7 +26,8 @@ from Order_Manager import *
 import threading
 #import time
 from queue import Queue
-
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Feed Starter", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 # Queue to store notifications in order
 notification_queue = Queue()
 
@@ -95,38 +96,6 @@ except Exception as e:
         text = f"Error: {e}"
         log(text)
         logging.exception(text)    
-
-
-# Sending required logs to Telegram
-#try:
-#    docs_to_send = ["app_logs.txt"]
-#    bot_token = '5398501864:AAFEn7ljDrKOVkXzhWX4P_khX9Xk-E8FicE'
-#    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-#    bot_chat_id = ['5162043562']
-#    for item in docs_to_send:
-#        document = open(item, "rb")
-#        response = requests.post(url, data={'chat_id': bot_chat_id}, files={'document': document})
-#        # logging.info(response.json())
-#        logging.info(f"{item} sent to Bot.")
-#except Exception as e:
-#    text = f"Error: {e}"
-#    log(text)
-#    logging.exception(text)
-
-# Deleting non required logs before closing
-#try:
-#    sleep(10)
-#    logging.info("Deleting non req files before closing.")
-#    docs_to_delete = ["data.txt"]
-    #for item in docs_to_delete:
-#        os.remove(item)
-#        logging.info(f"{item}: deleted")
-#except Exception as e:
-#    text = f"Error: {e}"
-#    logging.exception(text)
-   
-  
- 
 
 notification_queue.join()  # Block until all notifications are processed
 print("All notifications sent, exiting.")

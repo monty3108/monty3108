@@ -13,6 +13,8 @@ from Logger_Module import my_logger, logging
 import datetime
 from Order_Manager import check_order_status
 from queue import Queue
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Order Feed", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 # Queue to store notifications in order
 notification_queue = Queue()
@@ -179,25 +181,5 @@ def del_old_records() :
     print('for exited') 
     print(records) 
     write_pkl(file_path=file_path, obj=records) 
-    
-
-# file_path = 'pkl_obj/orderstatusfeed.pkl'
-# msg = read_pkl(file_path)
-# for id in msg:
-#     msg[id]['record_date'] = msg[id]['record_date'].isoformat()
-#     print(msg[id]['record_date'])
-#
-# print(json.dumps(msg, indent=4))
-#id ='24102300269409' 
-#print(msg[id]['status']) 
-#if id in msg:
-#    print(type(msg[id]['record_date']) ) 
-#    print(id) 
-#    print(msg[id]) 
-#    
-#del_old_records() 
-#    
-
-#    
 
 

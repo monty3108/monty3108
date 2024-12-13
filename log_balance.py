@@ -8,6 +8,8 @@ from Order_Manager import *
 
 # constants from config files
 import config
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="log Bal", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 
 create_dir(config.dir_name)

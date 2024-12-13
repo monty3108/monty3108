@@ -22,7 +22,9 @@ import logging
 import pyotp
 from Alice_Module import credentials
 from Logger_Module import *
-
+import config
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Alice Module", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 
 # from alice_blue import *
@@ -123,6 +125,7 @@ time.sleep(5)  # Adjust based on the loading time of the dashboard
 # Optional: Print current URL to confirm successful login
 msg=f"Logged in! Current URL: {driver.current_url}"
 my_logger(data_to_log=msg, fn='AutoLogin', bot=True)
+logging.info(msg)
 
 # Cleanup: Close the browser
 driver.quit()

@@ -1,5 +1,6 @@
 # Module for AliceBlue API Functions
 # Ver 1
+import sys
 
 from pya3 import *
 import os
@@ -12,7 +13,9 @@ from Logger_Module import *
 import Trade_Live
 import numpy as np
 import config
-
+# Setting Up logger for logging
+from My_Logger import setup_logger, LogLevel
+logger = setup_logger(logger_name="Alice Module", log_level=LogLevel.INFO, log_to_console=config.print_logging)
 
 trade_class_list = []
 subscribe_list = None
