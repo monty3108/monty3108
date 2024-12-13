@@ -631,7 +631,7 @@ try:
     
     # subscribe for feeds (initially BN & Nifty)
     subscribe() # only assigned instruments will get subscribed for ltp feeds
-    # nf.ltp = 23532
+    nf.ltp = 24678
     ltp_update() # exit if not updated withing 2 minutes
 
     # Dummy Instrument retrieval checking
