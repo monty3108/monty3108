@@ -23,7 +23,7 @@ import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
 import pandas as pd
-#import time
+# import time
 # constants from config files
 import config
 
@@ -35,20 +35,26 @@ create_dir(config.dir_name)
 
 # Setting Up logger for logger
 from My_Logger import setup_logger, LogLevel
+
 logger = setup_logger(logger_name="Nifty Buy", log_level=LogLevel.INFO, log_to_console=config.print_logger)
+
+strategy_name = 'nf_buy'
+
 
 # for telegram notifications
 def me(msg):
     """For sending personal notification """
-    st = "nf_buy"
+    st = strategy_name
     text = f'{msg} ({st})'
     notify1(text)
 
+
 def group(msg):
     """For sending group notification """
-    st = "nf_buy"
+    st = strategy_name
     text = f'{msg} ({st})'
     notify(text)
+
 
 # Level Enum & Variables classes defined
 class Level(Enum):
@@ -59,7 +65,7 @@ class Level(Enum):
     fifth = 5
 
 
-class Variables :
+class Variables:
 
     def __init__(self, change):
         self.change = change
@@ -70,20 +76,20 @@ class Variables :
         self.qty = 0
         self.buy_hedge = False
         self.prices = {}
-        self.sl_date= None
+        self.sl_date = None
         self.tgt_date = None
         self.order_ids = {
-            'order1' : None,
-            'order2' : None,
-            'order3' : None,
-            'order_sl' : None,
-            'order_tgt' : None,
-            'order_square_off' : None,
+            'order1': None,
+            'order2': None,
+            'order3': None,
+            'order_sl': None,
+            'order_tgt': None,
+            'order_square_off': None,
             'order_hedge': None
         }
 
 
-def reset_var(var: Variables) :
+def reset_var(var: Variables):
     """Func to reset the default values of variable of Variables Class"""
     fn = 'reset_var'
     try:
@@ -97,19 +103,19 @@ def reset_var(var: Variables) :
         var.buy_hedge = False
         var.prices = {}
         var.order_ids = {
-            'order1' : None,
-            'order2' : None,
-            'order3' : None,
-            'order_sl' : None,
-            'order_tgt' : None,
-            'order_square_off' : None,
-            'order_hedge' : None
+            'order1': None,
+            'order2': None,
+            'order3': None,
+            'order_sl': None,
+            'order_tgt': None,
+            'order_square_off': None,
+            'order_hedge': None
         }
         if ce_var.inst is None:
-            ce.instrument = None # resetting Trade variable
+            ce.instrument = None  # resetting Trade variable
             logger.info('ce inst set to None')
         if pe_var.inst is None:
-            pe.instrument = None # resetting Trade variable
+            pe.instrument = None  # resetting Trade variable
             logger.info('pe inst set to None')
         txt = f'{get_var_name(var)} is reset.'
         write_obj()
@@ -162,7 +168,7 @@ def obj_report():
     """Func to report values of ce_var and pe_var"""
     fn = 'obj_report'
     try:
-        obj_list= [ce_var, pe_var]
+        obj_list = [ce_var, pe_var]
         report = {}
         for obj in obj_list:
             if obj.tgt_date:
@@ -173,15 +179,15 @@ def obj_report():
                 t_date = None
             if obj.inst:
                 report[get_var_name(obj)] = dict(
-                Change = obj.change,
-                first_order_sent = obj.first_order_sent,
-                level = obj.level.value,
-                inst = obj.inst[3],
-                qty = obj.qty,
-                buy_hedge = obj.buy_hedge,
-                prices = obj.prices,
-                order_ids = obj.order_ids,
-                tgt_date = t_date
+                    Change=obj.change,
+                    first_order_sent=obj.first_order_sent,
+                    level=obj.level.value,
+                    inst=obj.inst[3],
+                    qty=obj.qty,
+                    buy_hedge=obj.buy_hedge,
+                    prices=obj.prices,
+                    order_ids=obj.order_ids,
+                    tgt_date=t_date
                 )
             else:
                 report[get_var_name(obj)] = None
@@ -195,7 +201,7 @@ def obj_report():
         logger.exception(text)
 
 
-def check_hedge() :
+def check_hedge():
     """Func to check buy posn & set buy_hedge to True"""
     try:
         global alice
@@ -206,7 +212,7 @@ def check_hedge() :
             logger.info(f'positions log is a list. Continue process.')
             log_is_list = True
         else:
-            logger.warning(f"Positions log is not a list, response: {positions}" )
+            logger.warning(f"Positions log is not a list, response: {positions}")
 
         if log_is_list:
             position_log_list = []
@@ -214,20 +220,20 @@ def check_hedge() :
             for log in positions:
                 qty = int(log['Netqty'])
                 # print(qty)
-                buy_avg_price = float(log['Buyavgprc' ])
-                option_type =  log['Opttype']
+                buy_avg_price = float(log['Buyavgprc'])
+                option_type = log['Opttype']
 
                 position_log = {
-                "Option_type": option_type,
-                "AvgPrice": buy_avg_price,
-                "Qty": qty
+                    "Option_type": option_type,
+                    "AvgPrice": buy_avg_price,
+                    "Qty": qty
                 }
                 position_log_list.append(position_log)
             logger.info(f'all position: {position_log_list}')
-            #print(json.dumps(trade_log_list, indent=4))
+            # print(json.dumps(trade_log_list, indent=4))
             for posn in position_log_list:
                 if posn['Qty'] > 0:
-                    if posn['AvgPrice'] > 0 and posn['AvgPrice']<5:
+                    if posn['AvgPrice'] > 0 and posn['AvgPrice'] < 5:
                         if posn['Option_type'] == 'CE':
                             logger.info('CE buy hedge is True')
                             ce_var.buy_hedge = True
@@ -246,27 +252,28 @@ def check_hedge() :
 def calc_strike(ltp, premium=20, is_ce=True):
     """ Func to calculate strike as per premium For Nifty only"""
     fn = 'calc_strike'
-    #rg #range
+    # rg #range
     try:
-        inst_dict={}
+        inst_dict = {}
         we = str(weekly_expiry_calculator())
         if is_ce is True:
-            rg = range(0,25,1)
+            rg = range(0, 25, 1)
         else:
-            rg = range(0,-25,-1)
+            rg = range(0, -25, -1)
         for i in rg:
-            strike=strike_calc(ltp=ltp , base=50, strike_difference=i)
+            strike = strike_calc(ltp=ltp, base=50, strike_difference=i)
             inst = nf.get_instrument_for_fno(symbol=config.FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False,
                                              strike=strike, is_ce=is_ce)
+
             # print(f' inst: {inst, fn} ')
             info = alice.get_scrip_info(inst)
             # print(f' info: {info, fn} ')
-            c_ltp= float(info['LTP'])
-            if c_ltp<premium:
+            c_ltp = float(info['LTP'])
+            if c_ltp < premium:
                 # print(f'{inst} :{c_ltp, fn} ')
                 inst_dict['inst'] = inst
                 inst_dict['ltp'] = c_ltp
-                txt= f'Strike Calculated for premium {premium}: {inst_dict} '
+                txt = f'Strike Calculated for premium {premium}: {inst_dict} '
                 me(txt)
                 logger.info(txt)
                 logger.info("Breaking for loop")
@@ -283,14 +290,14 @@ def calc_levels_price(first_entry, trade_var: Trade):
     SL based on percent & max loss"""
     fn = 'calc_levels_price'
     try:
-        x= first_entry
-        y = (first_entry *2) + 2 # tgt
-        z = first_entry * trade_var.qty # max buy amount
+        x = first_entry
+        y = (first_entry * 2) + 2  # tgt
+        z = first_entry * trade_var.qty  # max buy amount
 
         dict = {
-        'entry_price' : x,
-        'tgt_price' : round_nearest(y),
-        'max_loss' : round_nearest(z)
+            'entry_price': x,
+            'tgt_price': round_nearest(y),
+            'max_loss': round_nearest(z)
         }
         logger.info(f'Calculated level prices: {dict}')
         return dict
@@ -298,7 +305,7 @@ def calc_levels_price(first_entry, trade_var: Trade):
         text = f"Error: {e}"
         me(text)
         logger.exception(text)
-        return {} # return blank dict
+        return {}  # return blank dict
 
 
 # Check condition for change
@@ -309,14 +316,14 @@ def change_in_ltp(current_ltp):
         previous_close = p_close
         ltp = current_ltp
         POSITIVE_CHANGE = round(ltp - previous_close, 2)
-        NEGATIVE_CHANGE = round(previous_close - ltp,2)
+        NEGATIVE_CHANGE = round(previous_close - ltp, 2)
     except Exception as e:
         text = f"Error: {e}"
         me(text)
         logger.info(text)
 
 
-def read_obj() :
+def read_obj():
     """customised func for this program. Run after initialisation of required variables."""
     global ce_var, pe_var, ce, pe
     path = config.path_variable_container
@@ -334,7 +341,7 @@ def read_obj() :
     obj_report()
 
 
-def write_obj() :
+def write_obj():
     """customised func for this program. Run after initialisation of required variables."""
     global ce_var, pe_var
     path = config.path_variable_container
@@ -365,8 +372,8 @@ def tgt_hit_today(var: Variables):
         return var.tgt_date == today_date()
 
 
-def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
-    fn='check_change'
+def check_change(var_class: Variables, trade_var: Trade, is_ce=True):
+    fn = 'check_change'
 
     change_in_ltp(nf.ltp)
     try:
@@ -378,17 +385,18 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                         me(text)
                         logger.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
-                        var_class.inst = inst_dict['inst'] # for notification & record
+                        var_class.inst = inst_dict['inst']  # for notification & record
                         trade_var.instrument = inst_dict['inst']
                         trade_var.assigned(LOTS)
                         # sending buy order
                         var_class.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
-                                                                inst=trade_var.instrument,
-                                                                qty=trade_var.qty,
-                                                                order_type=OrderType.Market,
-                                                                product_type=ProductType.Normal,
-                                                                price=0.0
-                                                                )
+                                                                   inst=trade_var.instrument,
+                                                                   qty=trade_var.qty,
+                                                                   order_type=OrderType.Market,
+                                                                   product_type=ProductType.Normal,
+                                                                   price=0.0,
+                                                                   order_tag=strategy_name
+                                                                   )
                         var_class.first_order_sent = True
                         subscribe()
                         ltp_update()
@@ -400,21 +408,21 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                         me(text)
                         logger.info(text)
                         inst_dict = calc_strike(ltp=nf.ltp, premium=PREMIUM, is_ce=is_ce)
-                        var_class.inst = inst_dict['inst'] # for notification & record
+                        var_class.inst = inst_dict['inst']  # for notification & record
                         trade_var.instrument = inst_dict['inst']
                         trade_var.assigned(LOTS)
                         # sending buy order
                         var_class.order_ids['order1'] = send_order(transaction_type=TransactionType.Buy,
-                                                                inst=trade_var.instrument,
-                                                                qty=trade_var.qty,
-                                                                order_type=OrderType.Market,
-                                                                product_type=ProductType.Normal,
-                                                                price=0.0
-                                                                )
+                                                                   inst=trade_var.instrument,
+                                                                   qty=trade_var.qty,
+                                                                   order_type=OrderType.Market,
+                                                                   product_type=ProductType.Normal,
+                                                                   price=0.0,
+                                                                   order_tag=strategy_name
+                                                                   )
                         var_class.first_order_sent = True
                         subscribe()
                         ltp_update()
-
 
             if var_class.first_order_sent is True:
                 order_id = var_class.order_ids['order1']
@@ -435,8 +443,8 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
         elif var_class.level is Level.second:
             if trade_var.ltp >= var_class.prices['tgt_price'] and var_class.order_ids['order_tgt'] is None:
                 # sending trailing sl/ exit order
-                price = var_class.prices['tgt_price']-2
-                trigger_price = var_class.prices['tgt_price']-1
+                price = var_class.prices['tgt_price'] - 2
+                trigger_price = var_class.prices['tgt_price'] - 1
                 var_class.order_ids['order_tgt'] = send_order(
                     transaction_type=TransactionType.Sell,
                     inst=trade_var.instrument,
@@ -444,9 +452,10 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
                     order_type=OrderType.StopLossLimit,
                     product_type=ProductType.Normal,
                     price=round_nearest(price),
-                    trigger_price=round_nearest(trigger_price)
+                    trigger_price=round_nearest(trigger_price),
+                    order_tag=strategy_name
                 )
-                txt = f'{get_var_name(trade_var)} 1st tgt criteria met. Ltp: {ce.ltp}'
+                txt = f'{get_var_name(trade_var)} 1st tgt criteria met and tgt trailing started. Ltp: {trade_var.ltp}'
                 me(txt)
                 group(txt)
                 logger.info(txt)
@@ -496,12 +505,12 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce = True):
         logger.exception(text)
         sys.exit()
 
-logger.info(f'Time Check: {get_time() }')
+
+logger.info(f'Time Check: {get_time()}')
 logger.info("All Modules imported successfully.")
 
 # initialisation process
 try:
-
 
     # logger time variables
     time_cons = []
@@ -527,7 +536,7 @@ try:
     # to check if today is Expiry day. True if today is Expiry
     EXPIRY_DAY = today_expiry_day()
     EXIT_LEVEL = config.EXIT_LEVEL
-    LOTS= config.LOTS # Mention lots. Lots qty will be extracted from instrument.
+    LOTS = config.LOTS  # Mention lots. Lots qty will be extracted from instrument.
     QTY_ON_ERROR = config.QTY_ON_ERROR
     txt = f'Parameters (a) Change: {CHANGE} (b) Premium: {PREMIUM} (c) Exit_Level: Entry + 2 (e) Expiry: {EXPIRY_DAY}'
     me(txt)
@@ -545,30 +554,29 @@ try:
 
     # logger balance on csv. Try to maintain only one file
     if config.log_balance_required:
-        log_balance() # will be maintained in TradeNifty
+        log_balance()  # will be maintained in TradeNifty
 
 except Exception as e:
     logger.exception(e)
     me(f"{e}. Exiting......")
     sys.exit()
 
-
 # setting var for Index Nifty & ce and pe var & Sockets
 try:
     # Nifty Index Instrument
     NIFTY_INST = config.alice.get_instrument_by_symbol(exchange='INDICES', symbol=config.INDEX_NIFTY_SYMBOL)
     logger.info(f'Nifty_Inst retrieved: {NIFTY_INST}')
-    
+
     # nf for Nifty Index declared for Trade Class
     nf = Trade(alice=config.alice, paper_trade=True)
     logger.debug('nf declared for Trade class')
-    
+
     nf.instrument = NIFTY_INST
     nf.assigned(lots=LOTS, qty_on_error=QTY_ON_ERROR)
-    
-    txt= f'nf class defined. Inst: {nf.instrument}'
+
+    txt = f'nf class defined. Inst: {nf.instrument}'
     logger.info(txt)
-    
+
     """### Previous Closing"""
     # four days back
     from_date = datetime.datetime.now().replace(hour=9, minute=14, second=0) - datetime.timedelta(days=4)
@@ -578,41 +586,41 @@ try:
     logger.debug(f'to date: {to_date}')
 
     # df = pd.DataFrame()
-    df=nf.historical_data(no_of_days=None, interval="D", indices=True, from_datetime = from_date,to_datetime=to_date)
+    df = nf.historical_data(no_of_days=None, interval="D", indices=True, from_datetime=from_date, to_datetime=to_date)
     # interval : ["1", "D"] // indices: True or False
     logger.debug(f'historical data: {df}')
-    
-    l=len(df['close']) - 1 # getting index of last element
+
+    l = len(df['close']) - 1  # getting index of last element
     p_close = df.loc[l]['close']
-    
+
     txt = f'Nifty Previous Close: {p_close} '
     logger.info(txt)
-    
+
     # Initialising ce & pe
     logger.info("Initialising ce & pe")
     ce = Trade(alice=alice, paper_trade=False)
-    
+
     ce_buy = Trade(alice=alice, paper_trade=False)
-    
+
     pe = Trade(alice=alice, paper_trade=False)
-    
+
     pe_buy = Trade(alice=alice, paper_trade=False)
-    
+
     ce_var = Variables(CHANGE)
     pe_var = Variables(CHANGE)
-    
+
     # Reading all objects
     read_obj()
     check_expiry()
     # check_hedge()
-    
+
     # Websocket Connecting
     while get_time() < config.WEBSOCKET_START_TIME:
         sleep(30)
-    
+
     me("WEBSOCKET_START_TIME(08:30) crossed.")
     logger.info("WEBSOCKET_START_TIME(08:30) crossed.")
-    
+
     # code for connect websocket
     alice_websocket()
 
@@ -620,22 +628,22 @@ try:
     if config.order_Feed_required:
         me("starting order feed")
         start_order_feed_websocket()
-    
-    #Waiting for session to start
+
+    # Waiting for session to start
     while get_time() <= config.SESSION_START_TIME:
         sleep(1)
-        current_time=datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
-    
+        current_time = datetime.datetime.now(pytz.timezone('ASIA/KOLKATA')).time()
+
     me(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
     logger.info(f"SESSION_STARTED: {config.SESSION_START_TIME}.")
-    
+
     # subscribe for feeds (initially BN & Nifty)
-    subscribe() # only assigned instruments will get subscribed for ltp feeds
-    nf.ltp = 24678
-    ltp_update() # exit if not updated withing 2 minutes
+    subscribe()  # only assigned instruments will get subscribed for ltp feeds
+    nf.ltp = 23590
+    ltp_update()  # exit if not updated withing 2 minutes
 
     # Dummy Instrument retrieval checking
-    strike=strike_calc(ltp=nf.ltp , base=50, strike_difference=0)
+    strike = strike_calc(ltp=nf.ltp, base=50, strike_difference=0)
     we = str(weekly_expiry_calculator())
     dummy_inst = nf.get_instrument_for_fno(symbol=config.FNO_NIFTY_SYMBOL, expiry_date=we, is_fut=False, strike=strike,
                                            is_ce=True)
@@ -664,7 +672,7 @@ def strategy():
                 check_change(var_class=pe_var, trade_var=pe, is_ce=False)
 
             if tgt_hit_today(ce_var) and tgt_hit_today(pe_var):
-                msg= "both tgts hits. breaking while loop"
+                msg = "both tgts hits. breaking while loop"
                 me(msg)
                 logger.info(msg)
                 break
@@ -689,6 +697,7 @@ def strategy():
             logger.exception(text)
             sys.exit()
 
+
 strategy_thread = threading.Thread(target=strategy)
 strategy_thread.daemon = True  # Ensures the worker thread exits when the main program exits
 strategy_thread.start()
@@ -708,9 +717,9 @@ while True:
 try:
     unsubscribe()
     alice.stop_websocket()
-    
+
     """###Write Obj to the file obj.pkl"""
-    write_obj()  
+    write_obj()
     logger.info('Exiting... ')
     sleep(30)
 
@@ -718,7 +727,6 @@ except Exception as e:
     text = f"Error: {e}"
     me(text)
     logger.exception(text)
-
 
 # Sending required logs to Telegram
 try:
@@ -748,8 +756,7 @@ try:
 except Exception as e:
     text = f"Error: {e}"
     logger.exception(text)
-   
-  
+
 stop_worker()
 
 # read_pkl(file_path=config.path_order_status_feed)

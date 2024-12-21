@@ -13,7 +13,7 @@ alice = None
 telegram_notification = True
 
 # set True to print all logging along with log in file
-print_logger = True
+print_logger = False
 
 # variable to maintain status of all orders to be updated by Order_Manager.py and
 # live order status feed websocket OrderStatusFeed.py
@@ -48,6 +48,8 @@ print(logger_file_name)
 # * under dir logs
 path_balance = "logs/balance.csv"
 path_trade_log = "logs/trade_log.csv"
+path_strategy_log = "logs/strategy_log.csv"
+path_order_history = "logs/get_order_history.json"
 
 # Variables related to timings
 WEBSOCKET_START_TIME = datetime.datetime.strptime("08:30:00", "%H:%M:%S").time()

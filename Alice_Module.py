@@ -769,7 +769,7 @@ def log_trade_book() :
                 else:
                     amount = round((qty * avg_price * -1),2)
                 trade_log = {
-                "Exchtime": log['Exchtime'], 
+                "Exchtime": log['Filltime'],
                 "Tsym": log['Tsym'] , 
                 "Trantype": tran_type, 
                 "AvgPrice": avg_price, 
@@ -873,6 +873,97 @@ def log_balance() :
         logger.exception(text)
 
 
+
+def log_strategy_book():
+    """log all completed orders for all order tags"""
+    path = config.path_order_history
+
+    with open(path, 'r') as file:
+        order_history = json.load(file)
+
+    trade_log_list = []
+    if isinstance(order_history, list):
+        logger.info(f'{path} is a list. Continue process.')
+        for order in order_history:
+            if order["Status"] == "complete":
+                qty = int(order['Fillshares'])
+                avg_price = float(order['Avgprc'])
+                tran_type = order['Trantype']
+
+                if tran_type == 'S':
+                    amount = round(qty * avg_price, 2)
+                else:
+                    amount = round((qty * avg_price * -1), 2)
+
+                if order['ordersource'] == 'NA':
+                    tag = 'manual'
+                else:
+                    tag = order['ordersource']
+
+                trade_log = {
+                    "tag" : tag,
+                    "Exchtime": order['OrderedTime'],
+                    "Tsym": order['Trsym'],
+                    "Trantype": tran_type,
+                    "AvgPrice": avg_price,
+                    "Qty": qty,
+                    "Amount": amount,
+                    "Profit": ""
+                }
+                trade_log_list.append(trade_log)
+
+        # Converting trade logs to df
+        df = pd.DataFrame(trade_log_list)
+        # Converting str time to datetime
+        df['Exchtime'] = pd.to_datetime(df['Exchtime'], format='%d/%m/%Y %H:%M:%S')
+        file_path = config.path_strategy_log  # path for csv file
+        file_writer(df, file_path)  # For writing a new file else append
+
+        logger.info(f'Adding Cum Sum in {file_path}')
+        df1 = pd.read_csv(file_path)
+        df1['Exchtime'] = pd.to_datetime(df1['Exchtime'], format='%Y-%m-%d %H:%M:%S')
+        df1 = df1.sort_values(by='Exchtime')  # Sorting rows
+        logger.debug("Values sorted by exchtime")
+        df1['Profit'] = round(df1['Amount'].cumsum(), 2)
+        df1.to_csv(file_path, index=False)  # rewriting existing file
+        logger.info(f'{file_path} updated & exiting')
+        write_separate_strategies()
+    else:
+        logger.info(f'{path} is not a list. Aborting process.')
+
+
+def write_separate_strategies():
+    """calling from log_strategy_book to write separate tags csv"""
+    df = pd.read_csv(config.path_strategy_log)
+    all_tags = []
+
+    for index in df.index:
+        tag = df.iloc[index]['tag']
+        if tag in all_tags:
+            pass
+        else:
+            all_tags.append(tag)
+
+    for tag in all_tags:
+        rows = []
+        for index in df.index:
+            if tag == df.iloc[index]['tag']:
+                rows.append(df.iloc[index])
+        tag_df = pd.DataFrame(rows)
+        tag_df_path = f"logs/{tag}.csv"
+        tag_df.to_csv(tag_df_path, index=False)
+
+    for tag in all_tags:
+        tag_df_path = f"logs/{tag}.csv"
+        df1 = pd.read_csv(tag_df_path)
+        df1['Exchtime'] = pd.to_datetime(df1['Exchtime'], format='%Y-%m-%d %H:%M:%S')
+        df1 = df1.sort_values(by='Exchtime')  # Sorting rows
+        logger.debug("Values sorted by exchtime")
+        df1['Profit'] = round(df1['Amount'].cumsum(), 2)
+        df1.to_csv(tag_df_path, index=False)  # rewriting existing file
+        logger.info(f'{tag_df_path} updated & exiting')
+
+
 def position_report(add_to_report: list = None):
     """Func to return report of all active positions"""
     fn = 'position_report'
@@ -913,3 +1004,4 @@ def position_report(add_to_report: list = None):
         text = f"{e}"
         my_logger(text, fn=fn, bot=True)
         logger.exception(text)
+

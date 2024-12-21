@@ -24,18 +24,19 @@ if config.alice is None:
 # logging balance on csv. Try to maintain only one file
 log_trade_book()
 log_all_logs()
+log_strategy_book()
 
 # Sending required logs to Telegram
 try:
     # docs_to_send = ["app_logs.txt", "data.txt", "logs/trade_log.csv",  "logs/balance.csv"]
     docs_to_send = [config.path_trade_log,
+                    config.path_strategy_log,
                     config.path_balance,
                     'logs/get_netwise_positions.json',
                     'logs/get_holding_positions.json',
                     'logs/get_daywise_positions.json',
                     'logs/get_order_history.json',
                     'logs/get_balance.json',
-                    'logs/get_profile.json',
                     'logs/get_trade_book.json']
     bot_token = '5398501864:AAFEn7ljDrKOVkXzhWX4P_khX9Xk-E8FicE'
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
