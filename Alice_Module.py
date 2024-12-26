@@ -769,7 +769,7 @@ def log_trade_book() :
                 else:
                     amount = round((qty * avg_price * -1),2)
                 trade_log = {
-                "Exchtime": log['Filltime'],
+                "Exchtime": log['Exchtime'],
                 "Tsym": log['Tsym'] , 
                 "Trantype": tran_type, 
                 "AvgPrice": avg_price, 
