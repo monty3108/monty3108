@@ -110,7 +110,7 @@ def session_id_generate(download_contract=1):
         logger.debug(f'Before calling session generation alice: {alice} ')
         session = Aliceblue(user_id=data[0], api_key=data[5])
         response = session.get_session_id()
-        logger.info(response)
+        # logger.info(response)
         if response['stat'] == 'Ok':
             session_pkl = [Gen_Functions.today_date(), session]
             session_id = response['sessionID']
