@@ -110,7 +110,7 @@ def session_id_generate(download_contract=1):
         logger.debug(f'Before calling session generation alice: {alice} ')
         session = Aliceblue(user_id=data[0], api_key=data[5])
         response = session.get_session_id()
-        logger.info(response)
+        # logger.info(response)
         if response['stat'] == 'Ok':
             session_pkl = [Gen_Functions.today_date(), session]
             session_id = response['sessionID']
@@ -769,7 +769,7 @@ def log_trade_book() :
                 else:
                     amount = round((qty * avg_price * -1),2)
                 trade_log = {
-                "Exchtime": log['Filltime'],
+                "Exchtime": log['Exchtime'],
                 "Tsym": log['Tsym'] , 
                 "Trantype": tran_type, 
                 "AvgPrice": avg_price, 
