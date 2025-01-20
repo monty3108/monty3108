@@ -78,6 +78,9 @@ class Variables:
         self.prices = {}
         self.sl_date = None
         self.tgt_date = None
+        self.stop_date = None
+        self.stop_status = False
+        self.stop_reason = None
         self.order_ids = {
             'order1': None,
             'order2': None,
@@ -102,6 +105,9 @@ def reset_var(var: Variables):
         var.qty = 0
         var.buy_hedge = False
         var.prices = {}
+        var.stop_date = None
+        var.stop_status = False
+        var.stop_reason = None
         var.order_ids = {
             'order1': None,
             'order2': None,
@@ -177,6 +183,14 @@ def obj_report():
                 print(t_date)
             else:
                 t_date = None
+
+            if obj.stop_date:
+                # t_date = json.dumps(obj.tgt_date.strftime("%Y-%m-%d"))
+                s_date = obj.stop_date.isoformat()
+                print(s_date)
+            else:
+                s_date = None
+
             if obj.inst:
                 report[get_var_name(obj)] = dict(
                     Change=obj.change,
@@ -187,7 +201,10 @@ def obj_report():
                     buy_hedge=obj.buy_hedge,
                     prices=obj.prices,
                     order_ids=obj.order_ids,
-                    tgt_date=t_date
+                    tgt_date=t_date,
+                    stop_date = s_date,
+                    stop_status = obj.stop_status,
+                    stop_reason = obj.stop_reason
                 )
             else:
                 report[get_var_name(obj)] = None
@@ -291,7 +308,7 @@ def calc_levels_price(first_entry, trade_var: Trade):
     fn = 'calc_levels_price'
     try:
         x = first_entry
-        y = (first_entry * 2) + 2  # tgt
+        y = (first_entry * 2.5) + 2  # tgt
         z = first_entry * trade_var.qty  # max buy amount
 
         dict = {
@@ -366,6 +383,7 @@ def today_expiry_day():
 
 def tgt_hit_today(var: Variables):
     """return true if tgt achieved today"""
+
     if var.tgt_date is None:
         return False
     else:
@@ -427,6 +445,16 @@ def check_change(var_class: Variables, trade_var: Trade, is_ce=True):
             if var_class.first_order_sent is True:
                 order_id = var_class.order_ids['order1']
                 if is_pending(order_id):
+                    return
+
+                if is_rejected(order_id):
+                    var_class.stop_status = True
+                    var_class.stop_date = datetime.date.today()
+                    var_class.stop_reason = f'{order_id} got rejected.'
+                    me(var_class.stop_reason)
+                    logger.info(f'{order_id} got rejected.')
+
+                    write_obj()
                     return
 
                 if is_complete(order_id):
@@ -511,7 +539,8 @@ logger.info("All Modules imported successfully.")
 
 # initialisation process
 try:
-
+    quit_days = ['Fri', 'Mon']
+    quit_on_days(days_list=quit_days)
     # logger time variables
     time_cons = []
     time_cons.append(f"Websocket Start Time: {config.WEBSOCKET_START_TIME}")
@@ -612,6 +641,7 @@ try:
     # Reading all objects
     read_obj()
     check_expiry()
+
     # check_hedge()
 
     # Websocket Connecting
@@ -639,7 +669,7 @@ try:
 
     # subscribe for feeds (initially BN & Nifty)
     subscribe()  # only assigned instruments will get subscribed for ltp feeds
-    nf.ltp = 23590
+    # nf.ltp = 23590
     ltp_update()  # exit if not updated withing 2 minutes
 
     # Dummy Instrument retrieval checking
@@ -666,10 +696,18 @@ def strategy():
 
         try:
             if not tgt_hit_today(ce_var):
-                check_change(var_class=ce_var, trade_var=ce, is_ce=True)
+                if ce_var.stop_status is False:
+                    check_change(var_class=ce_var, trade_var=ce, is_ce=True)
+                else:
+                    if ce_var.stop_date < today_date():
+                        reset_var(ce_var)
 
             if not tgt_hit_today(pe_var):
-                check_change(var_class=pe_var, trade_var=pe, is_ce=False)
+                if pe_var.stop_status is False:
+                    check_change(var_class=pe_var, trade_var=pe, is_ce=False)
+                else:
+                    if pe_var.stop_date < today_date():
+                        reset_var(pe_var)
 
             if tgt_hit_today(ce_var) and tgt_hit_today(pe_var):
                 msg = "both tgts hits. breaking while loop"

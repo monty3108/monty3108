@@ -202,6 +202,21 @@ def get_price(order_id):
         logger.exception(text)
 
 
+def is_rejected(order_id):
+    fn = 'is_rejected'
+
+    try:
+        from config import order_status_dict
+        status = order_status_dict[order_id]['status'].lower()
+        return status == 'reject' or status == 'rejected'
+        # check_order_status()
+        # pending_order_id = read_pkl(file_path='pkl_obj/pending_order_id.pkl')
+        # return order_id in pending_order_id
+    except Exception as e:
+        text = f"Error: {e}"
+        my_logger(data_to_log=text, fn=fn, bot=True)
+        logger.exception(text)
+
 def reset_order_files():
     """func to clear files: order_id_response.pkl and rejected_order_id.pkl"""
     fn = 'reset_order_files'
